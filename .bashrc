@@ -2,6 +2,11 @@
 # ~/.bashrc
 #
 
+# 如果 .profile 存在，加载它
+if [ -f ~/.profile ]; then
+    . ~/.profile
+fi
+
 # If not running interactively, don't do anything
 [[ $- != *i* ]] && return
 
