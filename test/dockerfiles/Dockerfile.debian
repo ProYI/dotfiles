@@ -1,4 +1,6 @@
-FROM debian:12
+# 支持镜像加速
+ARG DOCKER_MIRROR=""
+FROM ${DOCKER_MIRROR}debian:12
 
 ENV DEBIAN_FRONTEND=noninteractive
 

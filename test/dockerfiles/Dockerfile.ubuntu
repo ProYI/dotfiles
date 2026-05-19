@@ -1,4 +1,6 @@
-FROM ubuntu:22.04
+# 支持镜像加速
+ARG DOCKER_MIRROR=""
+FROM ${DOCKER_MIRROR}ubuntu:22.04
 
 # 避免交互式提示
 ENV DEBIAN_FRONTEND=noninteractive

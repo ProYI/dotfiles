@@ -1,4 +1,6 @@
-FROM fedora:39
+# 支持镜像加速
+ARG DOCKER_MIRROR=""
+FROM ${DOCKER_MIRROR}fedora:39
 
 RUN dnf update -y && \
     dnf install -y \

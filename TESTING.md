@@ -42,6 +42,26 @@ sudo usermod -aG docker $USER
 
 安装后需要**重新登录**使用户组生效。
 
+### 配置镜像加速（国内用户推荐）
+
+测试脚本会自动读取 `~/.docker/mirror.conf` 配置文件来使用镜像加速：
+
+```bash
+# 创建配置文件
+mkdir -p ~/.docker
+cat > ~/.docker/mirror.conf << 'EOF'
+DOCKER_MIRROR="docker.1ms.run"
+EOF
+```
+
+配置后，测试脚本会自动使用镜像加速拉取基础镜像，无需手动修改 Dockerfile。
+
+**其他可用镜像源：**
+- `docker.1ms.run` （推荐）
+- `dockerpull.com`
+- `docker.rainbond.cc`
+- `docker.fxxk.dedyn.io`
+
 ## 快速开始
 
 ### 测试单个发行版

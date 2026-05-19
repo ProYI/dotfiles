@@ -10,6 +10,18 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
+# 加载 Docker 镜像配置
+DOCKER_MIRROR=""
+if [ -f "$HOME/.docker/mirror.conf" ]; then
+    source "$HOME/.docker/mirror.conf"
+    if [ -n "$DOCKER_MIRROR" ]; then
+        # 添加斜杠后缀
+        DOCKER_MIRROR="${DOCKER_MIRROR}/"
+        log_info() { echo -e "${BLUE}==>${NC} $1"; }
+        log_info "使用 Docker 镜像加速: $DOCKER_MIRROR"
+    fi
+fi
+
 log_info() {
     echo -e "${BLUE}==>${NC} $1"
 }
@@ -36,6 +48,7 @@ show_usage() {
   -b, --build         重新构建镜像
   -c, --clean         清理测试容器和镜像
   -i, --interactive   交互式模式（进入容器 shell）
+  -k, --keep-image    测试后保留镜像（默认会清理）
 
 发行版:
   arch                测试 Arch Linux
@@ -44,11 +57,12 @@ show_usage() {
   fedora              测试 Fedora
 
 示例:
-  $0 arch                    # 测试 Arch Linux
+  $0 arch                    # 测试 Arch Linux（测试后删除镜像）
+  $0 -k arch                 # 测试 Arch Linux（保留镜像）
   $0 -a                      # 测试所有发行版
   $0 -b ubuntu               # 重新构建并测试 Ubuntu
   $0 -i arch                 # 交互式进入 Arch 容器
-  $0 -c                      # 清理所有测试容器
+  $0 -c                      # 清理所有测试容器和镜像
 
 EOF
 }
@@ -64,7 +78,33 @@ build_image() {
     fi
 
     log_info "构建 $distro 镜像..."
-    docker build -f "$dockerfile" -t "dotfiles-test-$distro" .
+
+    # 传递镜像加速参数
+    if [ -n "$DOCKER_MIRROR" ]; then
+        # 先拉取并标记基础镜像，避免被清理
+        local base_image=$(grep "^FROM" "$dockerfile" | awk '{print $2}' | sed 's/\${DOCKER_MIRROR}//')
+
+        # Docker Hub 官方镜像需要添加 library/ 前缀
+        local mirror_image="$base_image"
+        if [[ ! "$base_image" =~ / ]]; then
+            mirror_image="library/$base_image"
+        fi
+
+        log_info "拉取基础镜像: ${DOCKER_MIRROR}${mirror_image}"
+        docker pull "${DOCKER_MIRROR}${mirror_image}"
+
+        # 给基础镜像打本地标签
+        docker tag "${DOCKER_MIRROR}${mirror_image}" "${base_image}"
+
+        # 删除加速镜像，只保留本地标签
+        docker rmi "${DOCKER_MIRROR}${mirror_image}" &> /dev/null || true
+
+        docker build --build-arg DOCKER_MIRROR="$DOCKER_MIRROR" \
+            -f "$dockerfile" -t "dotfiles-test-$distro" .
+    else
+        docker build -f "$dockerfile" -t "dotfiles-test-$distro" .
+    fi
+
     log_success "$distro 镜像构建完成"
 }
 
@@ -72,6 +112,7 @@ build_image() {
 run_test() {
     local distro=$1
     local interactive=$2
+    local keep_image=${3:-false}
 
     log_info "测试 $distro..."
 
@@ -126,7 +167,15 @@ run_test() {
                 echo "==> 测试完成！"
             '
 
-        if [ $? -eq 0 ]; then
+        local test_result=$?
+
+        # 测试完成后清理镜像（除非指定保留）
+        if [ "$keep_image" = false ] && [ $test_result -eq 0 ]; then
+            log_info "清理测试镜像..."
+            docker rmi "dotfiles-test-$distro" &> /dev/null || true
+        fi
+
+        if [ $test_result -eq 0 ]; then
             log_success "$distro 测试通过"
             return 0
         else
@@ -160,6 +209,7 @@ main() {
     local clean_flag=false
     local all_flag=false
     local interactive_flag=false
+    local keep_image_flag=false
     local distro=""
 
     # 解析参数
@@ -183,6 +233,10 @@ main() {
                 ;;
             -i|--interactive)
                 interactive_flag=true
+                shift
+                ;;
+            -k|--keep-image)
+                keep_image_flag=true
                 shift
                 ;;
             arch|ubuntu|debian|fedora)
@@ -216,7 +270,7 @@ main() {
             if [ "$build_flag" = true ]; then
                 build_image "$d"
             fi
-            if ! run_test "$d" false; then
+            if ! run_test "$d" false "$keep_image_flag"; then
                 ((failed++))
             fi
             echo ""
@@ -237,7 +291,7 @@ main() {
         if [ "$build_flag" = true ]; then
             build_image "$distro"
         fi
-        run_test "$distro" "$interactive_flag"
+        run_test "$distro" "$interactive_flag" "$keep_image_flag"
         exit 0
     fi
 

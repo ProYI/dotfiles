@@ -1,4 +1,6 @@
-FROM archlinux:latest
+# 支持镜像加速
+ARG DOCKER_MIRROR=""
+FROM ${DOCKER_MIRROR}archlinux:latest
 
 # 更新系统并安装基础工具
 RUN pacman -Syu --noconfirm && \
