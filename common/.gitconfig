@@ -1,0 +1,21 @@
+[user]
+	name = Your Name
+	email = your.email@example.com
+
+[core]
+	editor = vim
+	autocrlf = input
+
+[alias]
+	st = status
+	co = checkout
+	br = branch
+	ci = commit
+	lg = log --oneline --graph --decorate
+	last = log -1 HEAD
+
+[color]
+	ui = auto
+
+[pull]
+	rebase = false

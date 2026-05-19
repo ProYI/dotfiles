@@ -1,0 +1,28 @@
+# Ubuntu 软件包列表
+# 基础工具
+build-essential
+git
+vim
+zsh
+tmux
+curl
+wget
+
+# 开发工具
+openjdk-21-jdk
+maven
+python3
+python3-pip
+nodejs
+npm
+
+# 系统工具
+htop
+neofetch
+tree
+unzip
+zip
+
+# 网络工具
+net-tools
+openssh-server

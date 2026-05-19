@@ -1,0 +1,10 @@
+# 添加到 .gitignore
+*.bak
+*.backup.*
+.dotfiles_backup_*
+*.swp
+*.swo
+*~
+.DS_Store
+.claude/
+CLAUDE.md

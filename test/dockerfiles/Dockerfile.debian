@@ -1,0 +1,23 @@
+FROM debian:12
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && \
+    apt-get install -y \
+    build-essential \
+    git \
+    vim \
+    sudo \
+    curl \
+    wget && \
+    apt-get clean
+
+RUN useradd -m -s /bin/bash testuser && \
+    echo "testuser ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+
+USER testuser
+WORKDIR /home/testuser
+
+ENV SHELL=/bin/bash
+
+CMD ["/bin/bash"]

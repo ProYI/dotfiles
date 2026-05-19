@@ -1,0 +1,28 @@
+# Arch Linux 软件包列表
+# 基础工具
+base-devel
+git
+vim
+zsh
+tmux
+curl
+wget
+
+# 开发工具
+jdk21-openjdk
+maven
+python
+python-pip
+nodejs
+npm
+
+# 系统工具
+htop
+neofetch
+tree
+unzip
+zip
+
+# 网络工具
+net-tools
+openssh

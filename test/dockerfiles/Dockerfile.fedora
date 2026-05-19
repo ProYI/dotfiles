@@ -1,0 +1,21 @@
+FROM fedora:39
+
+RUN dnf update -y && \
+    dnf install -y \
+    @development-tools \
+    git \
+    vim \
+    sudo \
+    curl \
+    wget && \
+    dnf clean all
+
+RUN useradd -m -s /bin/bash testuser && \
+    echo "testuser ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+
+USER testuser
+WORKDIR /home/testuser
+
+ENV SHELL=/bin/bash
+
+CMD ["/bin/bash"]
