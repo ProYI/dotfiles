@@ -31,5 +31,27 @@ set background=dark           " 深色背景
 
 " 其他设置
 set mouse=a                   " 启用鼠标
-set clipboard=unnamedplus     " 使用系统剪贴板
+
+" Linux 剪贴板支持（检测 xclip/xsel）
+if has('clipboard') && has('unix') && !has('gui_running')
+  if executable('xclip') || executable('xsel')
+    set clipboard=unnamedplus
+  endif
+endif
+
 set backspace=indent,eol,start " 退格键行为
+
+" === 光标形状（DECSCUSR 标准，现代终端通用） ===
+" normal=1(竖线), insert=2(块), replace=3(下划线)
+let &t_SI = "\<Esc>[2 q"
+let &t_SR = "\<Esc>[3 q"
+let &t_EI = "\<Esc>[1 q"
+
+" === 折叠（按缩进自动折叠） ===
+set foldmethod=indent
+set foldlevel=99
+
+" === 不自动换行 ===
+set wrap
+set tw=0
+set indentexpr=

@@ -8,7 +8,7 @@ alias ....='cd ../../..'
 
 # 列表
 alias ll='ls -lh'
-alias la='ls -lAh'
+alias la='ls -lAhF'
 alias l='ls -CF'
 
 # 安全操作

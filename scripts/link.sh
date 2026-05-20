@@ -57,17 +57,19 @@ create_link() {
 link_common_files() {
     echo "链接通用配置文件..."
 
-    # 示例：链接 .vimrc, .gitconfig 等
-    if [ -f "$DOTFILES_DIR/common/.vimrc" ]; then
-        create_link "$DOTFILES_DIR/common/.vimrc" "$HOME/.vimrc"
-    fi
-
+    # 链接 .gitconfig
     if [ -f "$DOTFILES_DIR/common/.gitconfig" ]; then
         create_link "$DOTFILES_DIR/common/.gitconfig" "$HOME/.gitconfig"
     fi
 
+    # 链接 .tmux.conf
     if [ -f "$DOTFILES_DIR/common/.tmux.conf" ]; then
         create_link "$DOTFILES_DIR/common/.tmux.conf" "$HOME/.tmux.conf"
+    fi
+
+    # .vimrc 统一使用 common 版本
+    if [ -f "$DOTFILES_DIR/common/.vimrc" ]; then
+        create_link "$DOTFILES_DIR/common/.vimrc" "$HOME/.vimrc"
     fi
 }
 

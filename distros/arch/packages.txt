@@ -23,6 +23,9 @@ tree
 unzip
 zip
 
+# 剪贴板工具（vim unnamedplus 需要）
+xclip
+
 # 网络工具
 net-tools
 openssh
