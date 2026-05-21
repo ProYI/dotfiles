@@ -8,7 +8,21 @@ RUN pacman -Syu --noconfirm && \
     base-devel \
     git \
     vim \
-    sudo
+    sudo \
+    curl \
+    wget \
+    unzip \
+    zip \
+    openssl \
+    zlib \
+    bzip2 \
+    readline \
+    sqlite \
+    libffi \
+    xz \
+    ncurses \
+    ca-certificates \
+    gnupg
 
 # 创建测试用户
 RUN useradd -m -G wheel -s /bin/bash testuser && \

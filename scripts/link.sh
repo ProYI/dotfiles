@@ -80,6 +80,49 @@ link_linux_files() {
     if [ -f "$DOTFILES_DIR/linux/.Xresources" ]; then
         create_link "$DOTFILES_DIR/linux/.Xresources" "$HOME/.Xresources"
     fi
+
+    # 链接字体配置（如果存在）
+    local font_dir="$DOTFILES_DIR/linux/font"
+    if [ -d "$font_dir" ]; then
+        for font_conf in "$font_dir"/*; do
+            [ -f "$font_conf" ] || continue
+            local conf_name
+            conf_name="$(basename "$font_conf")"
+            # 字体配置通常放在 ~/.config/<terminal>/ 或 ~/.<terminal>
+            case "$conf_name" in
+                foot.conf)
+                    mkdir -p "$HOME/.config/foot"
+                    create_link "$font_conf" "$HOME/.config/foot/foot.conf"
+                    ;;
+                alacritty.toml)
+                    mkdir -p "$HOME/.config/alacritty"
+                    create_link "$font_conf" "$HOME/.config/alacritty/alacritty.toml"
+                    ;;
+                kitty.conf)
+                    mkdir -p "$HOME/.config/kitty"
+                    create_link "$font_conf" "$HOME/.config/kitty/kitty.conf"
+                    ;;
+                wezterm.lua)
+                    mkdir -p "$HOME/.config/wezterm"
+                    create_link "$font_conf" "$HOME/.config/wezterm/wezterm.lua"
+                    ;;
+            esac
+        done
+    fi
+
+    # 链接 SSH 配置（如果 .ssh 目录存在）
+    local ssh_dir="$DOTFILES_DIR/common/.ssh"
+    if [ -d "$ssh_dir" ]; then
+        local ssh_target="$HOME/.ssh"
+        mkdir -p "$ssh_target"
+        if [ -f "$ssh_dir/config" ]; then
+            # 不覆盖已有配置，只创建模板
+            if [ ! -f "$ssh_target/config" ]; then
+                cp -n "$ssh_dir/config" "$ssh_target/config"
+                log_success "SSH 配置模板已复制（请编辑 ~/.ssh/config 添加你的主机）"
+            fi
+        fi
+    fi
 }
 
 # 主函数

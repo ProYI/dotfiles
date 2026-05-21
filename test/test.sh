@@ -30,8 +30,29 @@ log_success() {
     echo -e "${GREEN}✓${NC} $1"
 }
 
+log_warning() {
+    echo -e "${YELLOW}⚠${NC} $1"
+}
+
 log_error() {
     echo -e "${RED}✗${NC} $1"
+}
+
+load_proxy_config() {
+    local env_http_proxy="${DOTFILES_HTTP_PROXY:-}"
+    local env_https_proxy="${DOTFILES_HTTPS_PROXY:-}"
+    local env_no_proxy="${DOTFILES_NO_PROXY:-}"
+    local proxy_config="${DOTFILES_PROXY_CONFIG:-config/proxy.conf}"
+
+    if [ -f "$proxy_config" ]; then
+        # shellcheck disable=SC1090
+        source "$proxy_config"
+    fi
+
+    DOTFILES_HTTP_PROXY="${env_http_proxy:-${DOTFILES_HTTP_PROXY:-}}"
+    DOTFILES_HTTPS_PROXY="${env_https_proxy:-${DOTFILES_HTTPS_PROXY:-}}"
+    DOTFILES_NO_PROXY="${env_no_proxy:-${DOTFILES_NO_PROXY:-}}"
+    export DOTFILES_HTTP_PROXY DOTFILES_HTTPS_PROXY DOTFILES_NO_PROXY
 }
 
 # 支持的发行版
@@ -79,31 +100,32 @@ build_image() {
 
     log_info "构建 $distro 镜像..."
 
-    # 传递镜像加速参数
-    if [ -n "$DOCKER_MIRROR" ]; then
-        # 先拉取并标记基础镜像，避免被清理
-        local base_image=$(grep "^FROM" "$dockerfile" | awk '{print $2}' | sed 's/\${DOCKER_MIRROR}//')
-
+    # 如果本地已有基础镜像，跳过拉取加速，build 时也传空 DOCKER_MIRROR 避免 build 阶段拉加速
+    local base_image=$(grep "^FROM" "$dockerfile" | awk '{print $2}' | sed 's/\${DOCKER_MIRROR}//')
+    local build_mirror=""
+    if docker image inspect "$base_image" &> /dev/null; then
+        log_info "本地已有基础镜像: $base_image，跳过拉取"
+    elif [ -n "$DOCKER_MIRROR" ]; then
+        # 本地没有，才通过加速拉取
         # Docker Hub 官方镜像需要添加 library/ 前缀
         local mirror_image="$base_image"
         if [[ ! "$base_image" =~ / ]]; then
             mirror_image="library/$base_image"
         fi
 
-        log_info "拉取基础镜像: ${DOCKER_MIRROR}${mirror_image}"
-        docker pull "${DOCKER_MIRROR}${mirror_image}"
-
-        # 给基础镜像打本地标签
-        docker tag "${DOCKER_MIRROR}${mirror_image}" "${base_image}"
-
-        # 删除加速镜像，只保留本地标签
-        docker rmi "${DOCKER_MIRROR}${mirror_image}" &> /dev/null || true
-
-        docker build --build-arg DOCKER_MIRROR="$DOCKER_MIRROR" \
-            -f "$dockerfile" -t "dotfiles-test-$distro" .
-    else
-        docker build -f "$dockerfile" -t "dotfiles-test-$distro" .
+        log_info "尝试拉取基础镜像: ${DOCKER_MIRROR}${mirror_image}"
+        if docker pull "${DOCKER_MIRROR}${mirror_image}" 2>/dev/null; then
+            docker tag "${DOCKER_MIRROR}${mirror_image}" "${base_image}"
+            docker rmi "${DOCKER_MIRROR}${mirror_image}" &> /dev/null || true
+            log_info "通过加速镜像拉取成功"
+        else
+            log_warning "加速镜像拉取失败，回退到 Docker Hub"
+            docker pull "$base_image" 2>/dev/null || true
+        fi
     fi
+
+    docker build --build-arg DOCKER_MIRROR="$build_mirror" \
+        -f "$dockerfile" -t "dotfiles-test-$distro" .
 
     log_success "$distro 镜像构建完成"
 }
@@ -137,6 +159,9 @@ run_test() {
         # 自动测试模式
         docker run --rm \
             --name "$container_name" \
+            -e DOTFILES_HTTP_PROXY \
+            -e DOTFILES_HTTPS_PROXY \
+            -e DOTFILES_NO_PROXY \
             -v "$(pwd):/home/testuser/.dotfiles:ro" \
             "dotfiles-test-$distro" \
             /bin/bash -c '
@@ -162,6 +187,29 @@ run_test() {
 
                 echo "==> 测试函数..."
                 type extract &> /dev/null && echo "✓ 函数 extract 可用"
+
+                echo "==> 安装所有开发工具模块..."
+                modules_dir="$HOME/.dotfiles-test/modules"
+                failed_modules=()
+                for mod_dir in "$modules_dir"/*/; do
+                    [ -d "$mod_dir" ] || continue
+                    mod_name="$(basename "$mod_dir")"
+                    [[ "$mod_name" == _example ]] && continue
+                    mod_install="$mod_dir/install.sh"
+                    if [ -f "$mod_install" ]; then
+                        echo "  安装模块: $mod_name"
+                        if ! bash "$mod_install"; then
+                            echo "  ⚠ 模块 $mod_name 安装失败"
+                            failed_modules+=("$mod_name")
+                        fi
+                    fi
+                done
+
+                if [ ${#failed_modules[@]} -gt 0 ]; then
+                    echo ""
+                    echo "==> 失败模块: ${failed_modules[*]}"
+                    exit 1
+                fi
 
                 echo ""
                 echo "==> 测试完成！"
@@ -211,6 +259,8 @@ main() {
     local interactive_flag=false
     local keep_image_flag=false
     local distro=""
+
+    load_proxy_config
 
     # 解析参数
     while [[ $# -gt 0 ]]; do

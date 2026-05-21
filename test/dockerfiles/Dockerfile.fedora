@@ -9,7 +9,19 @@ RUN dnf update -y && \
     vim \
     sudo \
     curl \
-    wget && \
+    wget \
+    unzip \
+    zip \
+    openssl-devel \
+    zlib-devel \
+    bzip2-devel \
+    readline-devel \
+    sqlite-devel \
+    libffi-devel \
+    xz-devel \
+    ncurses-devel \
+    ca-certificates \
+    gnupg && \
     dnf clean all
 
 RUN useradd -m -s /bin/bash testuser && \

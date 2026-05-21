@@ -9,7 +9,6 @@ wget
 
 # 系统工具
 htop
-neofetch
 tree
 unzip
 zip

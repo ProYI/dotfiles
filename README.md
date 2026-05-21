@@ -11,6 +11,10 @@
 - ✅ **自动检测**: 自动识别操作系统和发行版
 - ✅ **符号链接管理**: 自动创建和管理配置文件链接
 - ✅ **备份功能**: 安装前自动备份现有配置
+- ✅ **zsh + Zinit**: 轻量高性能 zsh 插件管理
+- ✅ **可插拔开发工具模块**: Node (fnm)、Java (sdkman)、Python (pyenv)、Docker、Rust
+- ✅ **字体配置**: Nerd Font 检测 + 各终端 Wayland 字体配置
+- ✅ **SSH 配置**: 安全模板 + 主机管理
 
 ## 目录结构
 
@@ -20,25 +24,55 @@ dotfiles/
 │   ├── shell/
 │   │   ├── aliases.sh        # 通用别名
 │   │   ├── functions.sh      # 通用函数
-│   │   └── exports.sh        # 通用环境变量
+│   │   ├── exports.sh        # 通用环境变量
+│   │   └── zsh-aliases.sh    # zsh 专属别名
+│   ├── font/
+│   │   └── nerd-font.sh      # Nerd Font 检测和安装
 │   ├── .bashrc               # Bash 配置
+│   ├── .zshrc                # Zsh 配置 (Zinit)
 │   ├── .profile              # Shell profile
 │   ├── .vimrc                # Vim 配置
 │   ├── .gitconfig            # Git 配置
-│   └── .tmux.conf            # Tmux 配置
+│   ├── .tmux.conf            # Tmux 配置
+│   └── .ssh/                 # SSH 配置模板
+│       └── config            # SSH 模板（复制到 ~/.ssh/config）
 │
 ├── linux/                     # Linux 通用配置
-│   └── shell/
-│       ├── aliases.sh        # Linux 通用别名
-│       └── exports.sh        # Linux 通用环境变量
+│   ├── shell/
+│   │   ├── aliases.sh        # Linux 通用别名
+│   │   └── exports.sh        # Linux 通用环境变量
+│   └── font/                  # 终端字体配置
+│       ├── foot.conf         # Wayland 终端 foot
+│       ├── kitty.conf        # Kitty 终端
+│       ├── alacritty.toml    # Alacritty 终端
+│       └── wezterm.lua       # WezTerm 终端
+│
+├── modules/                   # 可插拔开发工具模块
+│   ├── _example/             # 模块模板
+│   │   ├── install.sh
+│   │   └── shell/env.sh
+│   ├── node/                 # Node.js (fnm)
+│   │   ├── install.sh
+│   │   └── shell/env.sh
+│   ├── java/                 # Java (sdkman)
+│   │   ├── install.sh
+│   │   └── shell/env.sh
+│   ├── python/               # Python (pyenv)
+│   │   ├── install.sh
+│   │   └── shell/env.sh
+│   ├── docker/               # Docker + Compose
+│   │   ├── install.sh
+│   │   └── shell/env.sh
+│   └── rust/                 # Rust (rustup)
+│       ├── install.sh
+│       └── shell/env.sh
 │
 ├── distros/                   # 发行版特定配置
 │   ├── arch/
 │   │   ├── packages.txt      # 软件包列表
 │   │   ├── install.sh        # 安装脚本
-│   │   ├── shell/
-│   │   │   └── arch.sh       # Arch 特定配置
-│   │   └── config/
+│   │   └── shell/
+│   │       └── arch.sh       # Arch 特定配置
 │   ├── ubuntu/
 │   │   ├── packages.txt
 │   │   ├── install.sh
@@ -85,8 +119,10 @@ cd ~/.dotfiles
 1. 检测你的操作系统和发行版
 2. 询问是否配置国内镜像源（推荐，大幅提升下载速度）
 3. 询问是否备份现有配置
-4. 创建符号链接
-5. 运行发行版特定的安装脚本
+4. 询问是否安装开发工具模块（可选）
+5. 创建符号链接
+6. 运行发行版特定的安装脚本
+7. 安装选定的开发工具模块
 
 ### 3. 使配置生效
 
@@ -114,6 +150,100 @@ source ~/.bashrc
 
 5. **macOS 配置** (`macos/shell/macos.sh`)
    - macOS 特定配置
+
+6. **开发工具模块** (`modules/`)
+   - 通过 `DOTFILES_MODULES` 环境变量控制加载
+   - 示例: `export DOTFILES_MODULES="node java python docker"`
+
+## 开发工具模块
+
+通过 `modules/` 目录提供可插拔的开发工具安装和配置。
+
+### 可用模块
+
+| 模块 | 工具 | 说明 |
+|------|------|------|
+| `node` | fnm | Fast Node Manager，Rust 编写，比 nvm 快 |
+| `java` | sdkman | 统一管理 JDK、Maven、Gradle |
+| `python` | pyenv | 多版本 Python 管理 |
+| `docker` | Docker + Compose | 容器引擎 + 镜像加速 |
+| `rust` | rustup | Rust 工具链 |
+
+### 使用模块
+
+**安装时选择**：运行 `./install.sh` 后按提示选择模块。
+
+**手动安装**：
+```bash
+# 安装单个模块
+bash modules/node/install.sh
+bash modules/java/install.sh
+
+# 安装所有模块
+for mod in modules/*/; do
+    [ -d "$mod" ] || continue
+    [[ "$(basename "$mod")" == _example ]] && continue
+    bash "$mod/install.sh"
+done
+```
+
+**环境变量加载**：模块的环境变量由 `.bashrc` 自动加载。
+
+### 创建自定义模块
+
+参考 `modules/_example/` 目录：
+```
+modules/mytool/
+├── install.sh      # 安装逻辑
+└── shell/
+    └── env.sh      # 环境变量
+```
+
+## zsh 配置
+
+项目使用 **Zinit** 作为 zsh 插件管理器。
+
+### 安装
+
+运行 `./install.sh` 后会链接 `~/.zshrc`。首次启动 zsh 时，`common/.zshrc` 会自动安装 Zinit。
+
+### 插件
+
+插件在 `common/.zshrc` 中通过 `zinit light` 管理，当前包含：
+- `romkatv/powerlevel10k` - 主题
+- `zdharma-continuum/fast-syntax-highlighting` - 语法高亮
+- `zsh-users/zsh-autosuggestions` - 命令建议
+- `joshskidmore/zsh-fzf-tab-completion` - Tab 补全增强
+
+### 主题
+
+默认主题：`powerlevel10k`（在 `common/.zshrc` 中配置）。
+
+## 字体配置
+
+### Nerd Font
+
+终端图标需要 Nerd Font 支持。推荐使用 **JetBrains Mono Nerd Font**。
+
+```bash
+# 检测字体
+bash common/font/nerd-font.sh check
+
+# 安装字体
+bash common/font/nerd-font.sh install
+```
+
+### 中文 CJK 支持
+
+推荐安装 `Noto Sans CJK SC` 作为中文回退字体。
+
+### 终端配置
+
+各终端的字体配置片段位于 `linux/font/` 目录：
+- `foot.conf` - foot (Wayland)
+- `kitty.conf` - Kitty
+- `alacritty.toml` - Alacritty
+- `wezterm.lua` - WezTerm
 
 ## 使用示例
 

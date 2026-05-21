@@ -1,0 +1,23 @@
+# Alacritty 终端字体配置 (TOML)
+# 复制此片段到 Alacritty 配置中:
+#   通常位于 ~/.config/alacritty/alacritty.toml
+
+[font]
+size = 12.0
+
+# 主字体（英文 + 图标）
+normal.family = "JetBrains Mono Nerd Font"
+
+# 中文 CJK 回退
+# Alacritty 使用 fallback font 机制
+[[font.normal]]
+family = "Noto Sans CJK SC"
+style = "Regular"
+
+[[font.bold]]
+family = "JetBrains Mono Nerd Font"
+style = "Bold"
+
+[[font.bold]]
+family = "Noto Sans CJK SC"
+style = "Bold"

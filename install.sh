@@ -59,6 +59,12 @@ create_symlinks() {
         log_success "已链接 .bashrc"
     fi
 
+    # 链接 .zshrc
+    if [ -f "$DOTFILES_DIR/common/.zshrc" ]; then
+        ln -sf "$DOTFILES_DIR/common/.zshrc" "$HOME/.zshrc"
+        log_success "已链接 .zshrc"
+    fi
+
     # 链接 .profile
     if [ -f "$DOTFILES_DIR/common/.profile" ]; then
         ln -sf "$DOTFILES_DIR/common/.profile" "$HOME/.profile"
@@ -82,6 +88,31 @@ install_distro_specific() {
     fi
 }
 
+# 安装开发工具模块
+install_modules() {
+    local modules_to_install="${1:-}"
+
+    if [ -z "$modules_to_install" ]; then
+        return
+    fi
+
+    local modules_dir="$DOTFILES_DIR/modules"
+    if [ ! -d "$modules_dir" ]; then
+        log_warning "模块目录不存在: $modules_dir"
+        return
+    fi
+
+    for mod_name in $modules_to_install; do
+        local mod_install="$modules_dir/$mod_name/install.sh"
+        if [ -f "$mod_install" ]; then
+            log_info "安装模块: $mod_name"
+            bash "$mod_install"
+        else
+            log_warning "模块 $mod_name 的安装脚本不存在: $mod_install"
+        fi
+    done
+}
+
 # 配置镜像源
 setup_mirrors() {
     log_info "配置国内镜像源..."
@@ -90,6 +121,23 @@ setup_mirrors() {
     else
         log_warning "未找到镜像源配置脚本，跳过"
     fi
+}
+
+# 显示可用模块列表
+show_available_modules() {
+    local modules_dir="$DOTFILES_DIR/modules"
+    echo ""
+    log_info "可用开发工具模块:"
+    if [ -d "$modules_dir" ]; then
+        for mod_dir in "$modules_dir"/*/; do
+            [ -d "$mod_dir" ] || continue
+            local mod_name
+            mod_name="$(basename "$mod_dir")"
+            [[ "$mod_name" == _example ]] && continue
+            echo "  - $mod_name"
+        done
+    fi
+    echo ""
 }
 
 # 主安装流程
@@ -105,6 +153,7 @@ main() {
         log_info "检测到 WSL 环境"
     fi
 
+    # 1. 镜像源配置
     echo ""
     read -p "是否配置国内镜像源？(推荐) (y/n) " -n 1 -r
     echo ""
@@ -112,6 +161,7 @@ main() {
         setup_mirrors
     fi
 
+    # 2. 备份现有配置
     echo ""
     read -p "是否备份现有配置？(y/n) " -n 1 -r
     echo ""
@@ -119,13 +169,27 @@ main() {
         backup_existing
     fi
 
+    # 3. 选择开发工具模块
+    echo ""
+    show_available_modules
+    read -p "是否安装开发工具模块？(y/n) " -n 1 -r
+    echo ""
+    local selected_modules=""
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        read -p "选择模块 (用空格分隔，留空=全部): " -r
+        echo ""
+        if [ -n "$REPLY" ]; then
+            selected_modules="$REPLY"
+        fi
+    fi
+
     echo ""
     log_info "开始安装..."
 
-    # 创建符号链接
+    # 4. 创建符号链接（共通配置）
     create_symlinks
 
-    # 根据操作系统执行特定安装
+    # 5. 根据操作系统执行特定安装（包安装 + 系统配置）
     case "$OS" in
         arch)
             install_distro_specific "arch"
@@ -144,13 +208,17 @@ main() {
             ;;
         macos)
             log_info "macOS 配置..."
-            # macOS 特定安装逻辑
             ;;
         *)
             log_warning "未知的操作系统: $OS"
             log_info "仅安装通用配置"
             ;;
     esac
+
+    # 6. 安装开发工具模块
+    if [ -n "$selected_modules" ]; then
+        install_modules "$selected_modules"
+    fi
 
     echo ""
     log_success "安装完成！"

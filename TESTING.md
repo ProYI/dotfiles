@@ -62,6 +62,18 @@ EOF
 - `docker.rainbond.cc`
 - `docker.fxxk.dedyn.io`
 
+### 配置安装代理
+
+模块安装和 Docker 测试会自动读取 `config/proxy.conf`：
+
+```bash
+DOTFILES_HTTP_PROXY="http://127.0.0.1:7890"
+DOTFILES_HTTPS_PROXY="http://127.0.0.1:7890"
+DOTFILES_NO_PROXY="localhost,127.0.0.1"
+```
+
+Docker 测试会把这些代理配置传入容器，供 fnm 官方安装脚本和 Node 版本下载使用。
+
 ## 快速开始
 
 ### 测试单个发行版
@@ -113,7 +125,7 @@ EOF
 进入容器后：
 ```bash
 # 查看 dotfiles
-cd ~/.dotfiles-test
+cd ~/.dotfiles
 ls -la
 
 # 运行安装脚本
@@ -198,7 +210,7 @@ git commit -m "Add new feature"
 ./test/test.sh -i ubuntu
 
 # 2. 在容器内调试
-cd ~/.dotfiles-test
+cd ~/.dotfiles
 # 修改文件，测试修复
 
 # 3. 退出容器，应用修复到源文件

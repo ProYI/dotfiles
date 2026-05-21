@@ -70,5 +70,46 @@ if [ -f "$HOME/.docker/functions.sh" ]; then
     source "$HOME/.docker/functions.sh"
 fi
 
+# 9. 可插拔开发工具模块
+# 通过 DOTFILES_MODULES 环境变量控制加载哪些模块
+# 示例: export DOTFILES_MODULES="node java python docker"
+# 留空则加载所有可用模块
+_load_modules() {
+    local modules_dir="$DOTFILES_DIR/modules"
+    local modules_to_load="${DOTFILES_MODULES:-}"
+
+    if [ ! -d "$modules_dir" ]; then
+        return
+    fi
+
+    if [ -z "$modules_to_load" ]; then
+        # 默认加载所有模块
+        for mod_dir in "$modules_dir"/*/; do
+            [ -d "$mod_dir" ] || continue
+            local mod_name
+            mod_name="$(basename "$mod_dir")"
+            # 跳过示例模板
+            [[ "$mod_name" == _example ]] && continue
+
+            local env_file="$mod_dir/shell/env.sh"
+            if [ -f "$env_file" ]; then
+                source "$env_file"
+            fi
+        done
+    else
+        # 按列表加载指定模块
+        for mod_name in $modules_to_load; do
+            local env_file="$modules_dir/$mod_name/shell/env.sh"
+            if [ -f "$env_file" ]; then
+                source "$env_file"
+            else
+                echo "[dotfiles] 警告: 模块 $mod_name 的 env.sh 不存在" >&2
+            fi
+        done
+    fi
+}
+_load_modules
+unset -f _load_modules
+
 # 基础提示符（可以在发行版配置中覆盖）
 PS1='[\u@\h \W]\$ '
