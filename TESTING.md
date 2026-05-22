@@ -75,6 +75,24 @@ FNM_NODE_DIST_MIRROR="https://npmmirror.com/mirrors/node"
 
 Docker 测试会把这些配置传入容器，供 fnm 官方安装脚本和 Node 版本下载使用。
 
+## 命令参数
+
+```
+用法: ./test/test.sh [选项] [发行版]
+```
+
+| 参数 | 说明 |
+|------|------|
+| `-h, --help` | 显示帮助信息 |
+| `-a, --all` | 测试所有发行版（arch, ubuntu, debian, fedora） |
+| `-b, --build` | 强制重新构建 Docker 镜像 |
+| `-c, --clean` | 清理所有测试容器和镜像 |
+| `-i, --interactive` | 交互式模式，进入容器 shell 手动调试 |
+| `-k, --keep-image` | 测试后保留镜像（默认测试通过后会删除） |
+| `-s, --skip-test` | 跳过测试模式：首次全量安装 + 二次运行，验证安装脚本的跳过逻辑 |
+
+**发行版参数**：`arch`、`ubuntu`、`debian`、`fedora`
+
 ## 快速开始
 
 ### 测试单个发行版

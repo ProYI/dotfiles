@@ -111,18 +111,62 @@ cd ~/.dotfiles
 
 ### 2. 运行安装脚本
 
+**基础用法**（交互式，推荐）：
+
 ```bash
 ./install.sh
 ```
 
-安装脚本会：
-1. 检测你的操作系统和发行版
-2. 询问是否配置国内镜像源（推荐，大幅提升下载速度）
-3. 询问是否备份现有配置
-4. 询问是否安装开发工具模块（可选）
-5. 创建符号链接
-6. 运行发行版特定的安装脚本
-7. 安装选定的开发工具模块
+脚本会依次询问：
+1. 是否配置国内镜像源（推荐，大幅提升下载速度）
+2. 是否备份现有配置
+3. 是否安装开发工具模块（可选）
+
+**静默安装**（跳过所有交互，直接执行）：
+
+```bash
+# 跳过镜像源配置、跳过备份、跳过开发工具模块
+./install.sh --skip-mirrors --skip-backup --skip-modules
+```
+
+**指定模块安装**：
+
+```bash
+# 自动安装 node 和 docker 模块（其余步骤跳过）
+./install.sh --modules "node docker"
+```
+
+### 参数说明
+
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| `--skip-mirrors` | 跳过国内镜像源配置 | 交互式询问 |
+| `--skip-backup` | 跳过现有配置备份 | 交互式询问 |
+| `--skip-modules` | 跳过开发工具模块安装 | 交互式询问 |
+| `--modules "name1 name2"` | 指定要安装的开发工具模块（空格分隔），同时自动跳过交互提示 | 交互式选择 |
+
+**可用模块列表**：
+
+| 模块 | 工具 | 说明 |
+|------|------|------|
+| `node` | fnm | Fast Node Manager，Rust 编写，比 nvm 快 |
+| `java` | sdkman | 统一管理 JDK、Maven、Gradle |
+| `python` | pyenv | 多版本 Python 管理 |
+| `docker` | Docker + Compose | 容器引擎 + 镜像加速 |
+| `rust` | rustup | Rust 工具链 |
+
+**完整示例**：
+
+```bash
+# 一键安装（跳过所有交互，不安装任何模块）
+./install.sh --skip-mirrors --skip-backup --skip-modules
+
+# 安装所有模块（跳过镜像和备份）
+./install.sh --skip-backup --modules "node java python docker rust"
+
+# 只安装常用模块
+./install.sh --modules "node docker python"
+```
 
 ### 3. 使配置生效
 
@@ -161,13 +205,7 @@ source ~/.bashrc
 
 ### 可用模块
 
-| 模块 | 工具 | 说明 |
-|------|------|------|
-| `node` | fnm | Fast Node Manager，Rust 编写，比 nvm 快 |
-| `java` | sdkman | 统一管理 JDK、Maven、Gradle |
-| `python` | pyenv | 多版本 Python 管理 |
-| `docker` | Docker + Compose | 容器引擎 + 镜像加速 |
-| `rust` | rustup | Rust 工具链 |
+> **完整模块列表见下方 [参数说明](#参数说明)**
 
 ### 使用模块
 
@@ -434,7 +472,9 @@ MIT License
 
 ## 测试
 
-使用 Docker 快速测试 dotfiles 在不同发行版上的安装：
+使用 Docker 快速测试 dotfiles 在不同发行版上的安装。
+
+详细文档请查看 [TESTING.md](./TESTING.md)，常用命令：
 
 ```bash
 # 测试单个发行版
@@ -445,9 +485,13 @@ MIT License
 
 # 交互式调试
 ./test/test.sh -i ubuntu
-```
 
-详细测试文档请查看 [TESTING.md](./TESTING.md)
+# 跳过测试（验证安装脚本的跳过逻辑）
+./test/test.sh -s arch
+
+# 清理测试环境
+./test/test.sh -c
+```
 
 ## 相关资源
 

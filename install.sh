@@ -234,9 +234,51 @@ show_skip_records() {
     done
 }
 
+# 解析命令行参数
+parse_args() {
+    SKIP_MIRRORS=false
+    SKIP_BACKUP=false
+    SKIP_MODULES=false
+    MODULES_ARG=""
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --skip-mirrors)
+                SKIP_MIRRORS=true
+                shift
+                ;;
+            --skip-backup)
+                SKIP_BACKUP=true
+                shift
+                ;;
+            --skip-modules)
+                SKIP_MODULES=true
+                shift
+                ;;
+            --modules)
+                if [[ -z "${2:-}" ]]; then
+                    log_error "--modules 需要指定模块列表（空格分隔）"
+                    exit 1
+                fi
+                MODULES_ARG="$2"
+                SKIP_MODULES=true
+                shift 2
+                ;;
+            *)
+                log_error "未知参数: $1"
+                echo "用法: $0 [--skip-mirrors] [--skip-backup] [--skip-modules] [--modules \"name1 name2\"]"
+                exit 1
+                ;;
+        esac
+    done
+}
+
 # 主安装流程
 main() {
     show_banner
+
+    # 解析命令行参数
+    parse_args "$@"
 
     # 检测操作系统
     OS=$(detect_os)
@@ -249,44 +291,61 @@ main() {
 
     # 1. 镜像源配置
     echo ""
-    read -p "是否配置国内镜像源？(推荐) (y/n) " -n 1 -r
-    echo ""
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        setup_mirrors
+    if [ "$SKIP_MIRRORS" = true ]; then
+        record_skip "跳过镜像源配置 (--skip-mirrors)"
+    else
+        read -p "是否配置国内镜像源？(推荐) (y/n) " -n 1 -r
+        echo ""
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            setup_mirrors
+        fi
     fi
 
     # 2. 备份现有配置
     echo ""
-    read -p "是否备份现有配置？(y/n) " -n 1 -r
-    echo ""
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        backup_existing
+    if [ "$SKIP_BACKUP" = true ]; then
+        record_skip "跳过配置备份 (--skip-backup)"
+    else
+        read -p "是否备份现有配置？(y/n) " -n 1 -r
+        echo ""
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            backup_existing
+        fi
     fi
 
     # 3. 选择开发工具模块
     echo ""
-    show_available_modules
-    read -p "是否安装开发工具模块？(y/n) " -n 1 -r
-    echo ""
     local selected_modules=""
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        read -p "选择模块 (用空格分隔，留空=全部): " -r
-        echo ""
-        if [ -n "$REPLY" ]; then
-            selected_modules="$REPLY"
+    if [ "$SKIP_MODULES" = true ]; then
+        if [ -n "$MODULES_ARG" ]; then
+            selected_modules="$MODULES_ARG"
+            log_info "指定安装模块: $selected_modules"
         else
-            # 留空=全部模块
-            local modules_dir="$DOTFILES_DIR/modules"
-            if [ -d "$modules_dir" ]; then
-                selected_modules=""
-                for mod_dir in "$modules_dir"/*/; do
-                    [ -d "$mod_dir" ] || continue
-                    local mod_name
-                    mod_name="$(basename "$mod_dir")"
-                    [[ "$mod_name" == _example ]] && continue
-                    selected_modules="$selected_modules $mod_name"
-                done
-                selected_modules="${selected_modules# }"
+            record_skip "跳过开发工具模块安装 (--skip-modules)"
+        fi
+    else
+        read -p "是否安装开发工具模块？(y/n) " -n 1 -r
+        echo ""
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            show_available_modules
+            read -p "选择模块 (用空格分隔，留空=全部): " -r
+            echo ""
+            if [ -n "$REPLY" ]; then
+                selected_modules="$REPLY"
+            else
+                # 留空=全部模块
+                local modules_dir="$DOTFILES_DIR/modules"
+                if [ -d "$modules_dir" ]; then
+                    selected_modules=""
+                    for mod_dir in "$modules_dir"/*/; do
+                        [ -d "$mod_dir" ] || continue
+                        local mod_name
+                        mod_name="$(basename "$mod_dir")"
+                        [[ "$mod_name" == _example ]] && continue
+                        selected_modules="$selected_modules $mod_name"
+                    done
+                    selected_modules="${selected_modules# }"
+                fi
             fi
         fi
     fi
