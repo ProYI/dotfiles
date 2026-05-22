@@ -62,7 +62,7 @@ EOF
 - `docker.rainbond.cc`
 - `docker.fxxk.dedyn.io`
 
-### 配置安装代理
+### 配置安装网络
 
 模块安装和 Docker 测试会自动读取 `config/proxy.conf`：
 
@@ -70,9 +70,10 @@ EOF
 DOTFILES_HTTP_PROXY="http://127.0.0.1:7890"
 DOTFILES_HTTPS_PROXY="http://127.0.0.1:7890"
 DOTFILES_NO_PROXY="localhost,127.0.0.1"
+FNM_NODE_DIST_MIRROR="https://npmmirror.com/mirrors/node"
 ```
 
-Docker 测试会把这些代理配置传入容器，供 fnm 官方安装脚本和 Node 版本下载使用。
+Docker 测试会把这些配置传入容器，供 fnm 官方安装脚本和 Node 版本下载使用。
 
 ## 快速开始
 
@@ -125,7 +126,7 @@ Docker 测试会把这些代理配置传入容器，供 fnm 官方安装脚本�
 进入容器后：
 ```bash
 # 查看 dotfiles
-cd ~/.dotfiles
+cd ~/.dotfiles-test
 ls -la
 
 # 运行安装脚本

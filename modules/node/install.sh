@@ -50,6 +50,7 @@ setup_proxy_env() {
     local env_http_proxy="${DOTFILES_HTTP_PROXY:-}"
     local env_https_proxy="${DOTFILES_HTTPS_PROXY:-}"
     local env_no_proxy="${DOTFILES_NO_PROXY:-}"
+    local env_fnm_node_dist_mirror="${FNM_NODE_DIST_MIRROR:-}"
     local proxy_config="${DOTFILES_PROXY_CONFIG:-}"
 
     if [ -z "$proxy_config" ]; then
@@ -64,6 +65,7 @@ setup_proxy_env() {
     local http_proxy_value="${env_http_proxy:-${DOTFILES_HTTP_PROXY:-}}"
     local https_proxy_value="${env_https_proxy:-${DOTFILES_HTTPS_PROXY:-}}"
     local no_proxy_value="${env_no_proxy:-${DOTFILES_NO_PROXY:-}}"
+    local fnm_node_dist_mirror_value="${env_fnm_node_dist_mirror:-${FNM_NODE_DIST_MIRROR:-}}"
 
     if [ -n "$http_proxy_value" ] && [ -z "$https_proxy_value" ]; then
         https_proxy_value="$http_proxy_value"
@@ -98,6 +100,10 @@ setup_proxy_env() {
     if [ -n "$no_proxy_value" ]; then
         export no_proxy="$no_proxy_value"
         export NO_PROXY="$no_proxy_value"
+    fi
+
+    if [ -n "$fnm_node_dist_mirror_value" ]; then
+        export FNM_NODE_DIST_MIRROR="$fnm_node_dist_mirror_value"
     fi
 }
 
@@ -148,7 +154,7 @@ install_default_node() {
 
     if [ -n "$default_version" ]; then
         log_info "设置默认 Node 版本: $default_version"
-        fnm install "$default_version"
+        fnm install "$default_version" --progress=always
         fnm default "$default_version"
     fi
 }

@@ -6,7 +6,7 @@
 [[ $- != *i* ]] && return
 
 # Dotfiles 目录
-export DOTFILES_DIR="$HOME/.dotfiles"
+export DOTFILES_DIR="${DOTFILES_DIR:-$HOME/.dotfiles}"
 
 # 1. 加载通用配置（所有系统）
 if [ -f "$DOTFILES_DIR/common/shell/exports.sh" ]; then

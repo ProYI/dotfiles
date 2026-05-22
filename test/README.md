@@ -48,8 +48,7 @@
 在容器内：
 
 ```bash
-# 复制 dotfiles
-cp -r ~/.dotfiles ~/.dotfiles-test
+# 已自动复制到可写目录
 cd ~/.dotfiles-test
 
 # 运行安装脚本

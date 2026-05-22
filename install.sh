@@ -140,6 +140,17 @@ show_available_modules() {
     echo ""
 }
 
+run_doctor() {
+    local doctor_script="$DOTFILES_DIR/scripts/doctor.sh"
+
+    if [ -x "$doctor_script" ]; then
+        log_info "运行安装验收检查..."
+        bash "$doctor_script" all
+    else
+        log_warning "未找到验收脚本，跳过: $doctor_script"
+    fi
+}
+
 # 主安装流程
 main() {
     show_banner
@@ -219,6 +230,9 @@ main() {
     if [ -n "$selected_modules" ]; then
         install_modules "$selected_modules"
     fi
+
+    # 7. 输出明确的安装/配置可用性摘要
+    run_doctor
 
     echo ""
     log_success "安装完成！"

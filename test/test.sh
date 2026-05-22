@@ -42,6 +42,7 @@ load_proxy_config() {
     local env_http_proxy="${DOTFILES_HTTP_PROXY:-}"
     local env_https_proxy="${DOTFILES_HTTPS_PROXY:-}"
     local env_no_proxy="${DOTFILES_NO_PROXY:-}"
+    local env_fnm_node_dist_mirror="${FNM_NODE_DIST_MIRROR:-}"
     local proxy_config="${DOTFILES_PROXY_CONFIG:-config/proxy.conf}"
 
     if [ -f "$proxy_config" ]; then
@@ -52,7 +53,8 @@ load_proxy_config() {
     DOTFILES_HTTP_PROXY="${env_http_proxy:-${DOTFILES_HTTP_PROXY:-}}"
     DOTFILES_HTTPS_PROXY="${env_https_proxy:-${DOTFILES_HTTPS_PROXY:-}}"
     DOTFILES_NO_PROXY="${env_no_proxy:-${DOTFILES_NO_PROXY:-}}"
-    export DOTFILES_HTTP_PROXY DOTFILES_HTTPS_PROXY DOTFILES_NO_PROXY
+    FNM_NODE_DIST_MIRROR="${env_fnm_node_dist_mirror:-${FNM_NODE_DIST_MIRROR:-}}"
+    export DOTFILES_HTTP_PROXY DOTFILES_HTTPS_PROXY DOTFILES_NO_PROXY FNM_NODE_DIST_MIRROR
 }
 
 # 支持的发行版
@@ -150,10 +152,33 @@ run_test() {
     if [ "$interactive" = true ]; then
         # 交互式模式
         log_info "启动交互式容器..."
-        docker run -it --rm \
+        docker run -d \
             --name "$container_name" \
-            -v "$(pwd):/home/testuser/.dotfiles:ro" \
+            -e DOTFILES_HTTP_PROXY \
+            -e DOTFILES_HTTPS_PROXY \
+            -e DOTFILES_NO_PROXY \
+            -e FNM_NODE_DIST_MIRROR \
             "dotfiles-test-$distro" \
+            sleep infinity >/dev/null
+
+        cleanup_interactive_container() {
+            docker rm -f "$container_name" &> /dev/null || true
+        }
+        trap cleanup_interactive_container RETURN
+
+        log_info "复制 dotfiles 到容器可写目录..."
+        docker exec "$container_name" rm -rf /home/testuser/.dotfiles-test
+        docker cp . "$container_name:/home/testuser/.dotfiles-test"
+        docker exec -u root "$container_name" chown -R testuser:testuser /home/testuser/.dotfiles-test
+
+        log_info "进入交互式 shell: /home/testuser/.dotfiles-test"
+        docker exec -it \
+            -e DOTFILES_HTTP_PROXY \
+            -e DOTFILES_HTTPS_PROXY \
+            -e DOTFILES_NO_PROXY \
+            -e FNM_NODE_DIST_MIRROR \
+            -w /home/testuser/.dotfiles-test \
+            "$container_name" \
             /bin/bash
     else
         # 自动测试模式
@@ -162,6 +187,7 @@ run_test() {
             -e DOTFILES_HTTP_PROXY \
             -e DOTFILES_HTTPS_PROXY \
             -e DOTFILES_NO_PROXY \
+            -e FNM_NODE_DIST_MIRROR \
             -v "$(pwd):/home/testuser/.dotfiles:ro" \
             "dotfiles-test-$distro" \
             /bin/bash -c '
@@ -174,8 +200,10 @@ run_test() {
                 bash scripts/detect_os.sh
 
                 echo "==> 测试配置加载..."
-                # 创建符号链接
+                # 创建完整符号链接
                 ln -sf ~/.dotfiles-test/common/.bashrc ~/.bashrc
+                ln -sf ~/.dotfiles-test/common/.zshrc ~/.zshrc
+                DOTFILES_DIR=~/.dotfiles-test bash ~/.dotfiles-test/scripts/link.sh
 
                 # 测试加载
                 export DOTFILES_DIR=~/.dotfiles-test
@@ -187,6 +215,17 @@ run_test() {
 
                 echo "==> 测试函数..."
                 type extract &> /dev/null && echo "✓ 函数 extract 可用"
+
+                echo "==> 安装发行版基础包..."
+                if [ -f "/etc/os-release" ]; then
+                    . /etc/os-release
+                    distro_install="$HOME/.dotfiles-test/distros/${ID}/install.sh"
+                    if [ -f "$distro_install" ]; then
+                        bash "$distro_install"
+                    else
+                        echo "⚠ 未找到发行版安装脚本: $distro_install"
+                    fi
+                fi
 
                 echo "==> 安装所有开发工具模块..."
                 modules_dir="$HOME/.dotfiles-test/modules"
@@ -210,6 +249,10 @@ run_test() {
                     echo "==> 失败模块: ${failed_modules[*]}"
                     exit 1
                 fi
+
+                echo ""
+                echo "==> Dotfiles 验收检查..."
+                bash "$HOME/.dotfiles-test/scripts/doctor.sh" all
 
                 echo ""
                 echo "==> 测试完成！"
