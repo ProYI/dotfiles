@@ -416,11 +416,29 @@ docker-mirror-edit
 
 默认位置是 `~/.dotfiles`。如果你想使用其他位置：
 
-1. 克隆到你想要的位置
-2. 设置环境变量：
+**方式一：配置文件（推荐）**
+
+编辑 `config/dotfiles.conf`，设置 `DOTFILES_DIR`：
+
+```bash
+# 修改 config/dotfiles.conf 中的 DOTFILES_DIR 变量
+DOTFILES_DIR="/path/to/your/dotfiles"
+```
+
+**方式二：环境变量**
+
 ```bash
 export DOTFILES_DIR="/path/to/your/dotfiles"
 ```
+
+**方式三：克隆到任意位置**
+
+```bash
+git clone <your-repo-url> /path/to/your/dotfiles
+cd /path/to/your/dotfiles
+```
+
+脚本会自动检测仓库所在目录作为 `DOTFILES_DIR`。
 
 ### 添加私有配置
 

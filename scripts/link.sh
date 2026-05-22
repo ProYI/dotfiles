@@ -1,8 +1,6 @@
 #!/bin/bash
 # 符号链接管理脚本
 
-DOTFILES_DIR="${DOTFILES_DIR:-$HOME/.dotfiles}"
-
 # 颜色输出
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'

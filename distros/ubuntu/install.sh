@@ -1,7 +1,6 @@
 #!/bin/bash
 # Ubuntu 安装脚本
 
-DOTFILES_DIR="$HOME/.dotfiles"
 
 log_warning() {
     echo -e "\033[1;33m⚠${NC} 跳过: $1"

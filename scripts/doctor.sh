@@ -9,7 +9,6 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-DOTFILES_DIR="${DOTFILES_DIR:-$HOME/.dotfiles}"
 CHECK_SCOPE="${1:-all}"
 FAILED=0
 

@@ -273,12 +273,23 @@ parse_args() {
     done
 }
 
+# 加载用户配置
+load_user_config() {
+    local config_file="${DOTFILES_DIR}/config/dotfiles.conf"
+    if [ -f "$config_file" ]; then
+        source "$config_file"
+    fi
+}
+
 # 主安装流程
 main() {
     show_banner
 
     # 解析命令行参数
     parse_args "$@"
+
+    # 加载用户配置（在 parse_args 之后，避免 DOTFILES_DIR 未定义）
+    load_user_config
 
     # 检测操作系统
     OS=$(detect_os)
