@@ -3,6 +3,19 @@
 
 DOTFILES_DIR="$HOME/.dotfiles"
 
+log_warning() {
+    echo -e "\033[1;33m⚠${NC} 跳过: $1"
+}
+
+command_exists() {
+    command -v "$1" &> /dev/null
+}
+
+# 检测包是否已安装（rpm/dnf）
+pkg_installed() {
+    rpm -qi "$1" &> /dev/null
+}
+
 echo "开始 Fedora 系统配置..."
 
 # 更新系统
@@ -19,12 +32,19 @@ if [ -f "$DOTFILES_DIR/distros/fedora/packages.txt" ]; then
     packages=()
     while IFS= read -r line; do
         [[ -z "$line" || "$line" =~ ^# ]] && continue
+
+        # 检查是否已安装
+        if pkg_installed "$line"; then
+            log_warning "检测到已有 $line，不重新安装"
+            continue
+        fi
+
         pkg=$(resolve_package "$line")
         packages+=($pkg)
     done < "$DOTFILES_DIR/distros/fedora/packages.txt"
 
     if [ ${#packages[@]} -gt 0 ]; then
-        sudo dnf install -y "${packages[@]}"
+        sudo dnf install -y "${packages[@]}" || true
     fi
 fi
 

@@ -26,6 +26,15 @@ command_exists() {
     command -v "$1" &> /dev/null
 }
 
+skip_existing_docker() {
+    if command_exists docker; then
+        log_warning "跳过: 检测到已有 Docker，不修改安装、用户组或镜像配置"
+        return 0
+    fi
+
+    return 1
+}
+
 # 通过包管理器安装 Docker（优先）
 install_docker_pkg() {
     local distro_id
@@ -119,6 +128,10 @@ EOF
 }
 
 # 主流程
+if skip_existing_docker; then
+    exit 0
+fi
+
 install_docker_pkg
 add_user_to_docker_group
 setup_docker_mirror

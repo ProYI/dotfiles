@@ -23,6 +23,15 @@ command_exists() {
     command -v "$1" &> /dev/null
 }
 
+skip_existing_node() {
+    if command_exists node; then
+        log_warning "跳过: 检测到已有 Node.js ($(node --version 2>/dev/null || echo unknown))，不安装 fnm 或默认 Node 版本"
+        return 0
+    fi
+
+    return 1
+}
+
 run_bash_without_nounset() {
     env -u SHELLOPTS bash "$@"
 }
@@ -160,5 +169,9 @@ install_default_node() {
 }
 
 # 主流程
+if skip_existing_node; then
+    exit 0
+fi
+
 install_fnm
 install_default_node

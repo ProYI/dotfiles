@@ -3,6 +3,31 @@
 
 DOTFILES_DIR="$HOME/.dotfiles"
 
+log_warning() {
+    echo -e "\033[1;33m⚠${NC} 跳过: $1"
+}
+
+command_exists() {
+    command -v "$1" &> /dev/null
+}
+
+# 检测包是否已安装（pacman）
+pkg_installed() {
+    pacman -Qi "$1" &> /dev/null
+}
+
+# 检测包是否已安装（aurhelper）
+aurpkg_installed() {
+    local pkg="$1"
+    if command -v yay &> /dev/null; then
+        yay -Qi "$pkg" &> /dev/null
+    elif command -v paru &> /dev/null; then
+        paru -Qi "$pkg" &> /dev/null
+    else
+        return 1
+    fi
+}
+
 echo "开始 Arch Linux 系统配置..."
 
 # 1. 设置系统语言
@@ -30,16 +55,29 @@ if [ -f "$DOTFILES_DIR/distros/arch/packages-map.sh" ]; then
 fi
 
 if [ -f "$DOTFILES_DIR/distros/arch/packages.txt" ]; then
-    echo "Installing packages from packages.txt..."
+    echo "安装软件包..."
     packages=()
     while IFS= read -r line; do
         [[ -z "$line" || "$line" =~ ^# ]] && continue
+
+        # 检查是否已安装
+        if pkg_installed "$line"; then
+            log_warning "检测到已有 $line，不重新安装"
+            continue
+        fi
+
+        # AUR 包检查
+        if ! pkg_installed "$line" && aurpkg_installed "$line"; then
+            log_warning "检测到已有 $line（AUR），不重新安装"
+            continue
+        fi
+
         pkg=$(resolve_package "$line")
         packages+=($pkg)
     done < "$DOTFILES_DIR/distros/arch/packages.txt"
 
     if [ ${#packages[@]} -gt 0 ]; then
-        sudo pacman -S --needed --noconfirm "${packages[@]}"
+        sudo pacman -S --needed --noconfirm "${packages[@]}" || true
     fi
 fi
 

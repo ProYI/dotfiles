@@ -30,6 +30,44 @@ log_error() {
     echo -e "${RED}✗${NC} $1"
 }
 
+SKIP_RECORDS=()
+
+record_skip() {
+    local message="$1"
+
+    SKIP_RECORDS+=("$message")
+    log_warning "跳过: $message"
+}
+
+command_exists() {
+    command -v "$1" &> /dev/null
+}
+
+# 检测模块是否已安装，已安装则记录跳过并返回 0
+# 用法: detect_module <模块名> <命令1> [命令2 ...]
+# 例如: detect_module node node npm
+detect_module() {
+    local mod_name="$1"
+    shift
+    local cmds=("$@")
+
+    for cmd in "${cmds[@]}"; do
+        if command_exists "$cmd"; then
+            local version=""
+            case "$cmd" in
+                node)    version="($(node --version 2>/dev/null || echo unknown))" ;;
+                java)    version="($(java -version 2>&1 | head -1 || echo unknown))" ;;
+                docker)  version="($(docker --version 2>/dev/null || echo unknown))" ;;
+                python)  version="($(python3 --version 2>/dev/null || echo unknown))" ;;
+                *)       version="" ;;
+            esac
+            record_skip "检测到已有 ${mod_name}${version}，保留 ${mod_name} 模块"
+            return 0
+        fi
+    done
+    return 1
+}
+
 # 加载系统检测脚本
 source "$DOTFILES_DIR/scripts/detect_os.sh"
 
@@ -59,10 +97,14 @@ create_symlinks() {
         log_success "已链接 .bashrc"
     fi
 
-    # 链接 .zshrc
+    # 链接 .zshrc。旧机器已有 zsh 时保留原有启动配置。
     if [ -f "$DOTFILES_DIR/common/.zshrc" ]; then
-        ln -sf "$DOTFILES_DIR/common/.zshrc" "$HOME/.zshrc"
-        log_success "已链接 .zshrc"
+        if command_exists zsh && [ ! "$HOME/.zshrc" -ef "$DOTFILES_DIR/common/.zshrc" ]; then
+            record_skip "检测到已有 zsh，保留 $HOME/.zshrc"
+        else
+            ln -sf "$DOTFILES_DIR/common/.zshrc" "$HOME/.zshrc"
+            log_success "已链接 .zshrc"
+        fi
     fi
 
     # 链接 .profile
@@ -104,6 +146,35 @@ install_modules() {
 
     for mod_name in $modules_to_install; do
         local mod_install="$modules_dir/$mod_name/install.sh"
+
+        case "$mod_name" in
+            node)
+                if detect_module node fnm node npm; then
+                    continue
+                fi
+                ;;
+            java)
+                if detect_module java java sdk javac; then
+                    continue
+                fi
+                ;;
+            docker)
+                if detect_module docker docker docker-compose; then
+                    continue
+                fi
+                ;;
+            python)
+                if detect_module python python3 pip3; then
+                    continue
+                fi
+                ;;
+            rust)
+                if detect_module rust cargo rustup rust; then
+                    continue
+                fi
+                ;;
+        esac
+
         if [ -f "$mod_install" ]; then
             log_info "安装模块: $mod_name"
             bash "$mod_install"
@@ -151,6 +222,18 @@ run_doctor() {
     fi
 }
 
+show_skip_records() {
+    if [ "${#SKIP_RECORDS[@]}" -eq 0 ]; then
+        return
+    fi
+
+    echo ""
+    log_info "跳过记录:"
+    for record in "${SKIP_RECORDS[@]}"; do
+        echo "  - $record"
+    done
+}
+
 # 主安装流程
 main() {
     show_banner
@@ -191,11 +274,41 @@ main() {
         echo ""
         if [ -n "$REPLY" ]; then
             selected_modules="$REPLY"
+        else
+            # 留空=全部模块
+            local modules_dir="$DOTFILES_DIR/modules"
+            if [ -d "$modules_dir" ]; then
+                selected_modules=""
+                for mod_dir in "$modules_dir"/*/; do
+                    [ -d "$mod_dir" ] || continue
+                    local mod_name
+                    mod_name="$(basename "$mod_dir")"
+                    [[ "$mod_name" == _example ]] && continue
+                    selected_modules="$selected_modules $mod_name"
+                done
+                selected_modules="${selected_modules# }"
+            fi
         fi
     fi
 
     echo ""
     log_info "开始安装..."
+
+    # 加载开发工具模块的环境变量（使 fnm/sdkman/cargo 等工具在 PATH 中）
+    # 注意：不能 source .bashrc，因为 .bashrc 有 [[ $- != *i* ]] && return 保护
+    local modules_dir="$DOTFILES_DIR/modules"
+    if [ -d "$modules_dir" ]; then
+        for mod_dir in "$modules_dir"/*/; do
+            [ -d "$mod_dir" ] || continue
+            local mod_name
+            mod_name="$(basename "$mod_dir")"
+            [[ "$mod_name" == _example ]] && continue
+            local env_file="$mod_dir/shell/env.sh"
+            if [ -f "$env_file" ]; then
+                source "$env_file" 2>/dev/null || true
+            fi
+        done
+    fi
 
     # 4. 创建符号链接（共通配置）
     create_symlinks
@@ -233,6 +346,8 @@ main() {
 
     # 7. 输出明确的安装/配置可用性摘要
     run_doctor
+
+    show_skip_records
 
     echo ""
     log_success "安装完成！"

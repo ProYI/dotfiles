@@ -24,6 +24,15 @@ command_exists() {
     command -v "$1" &> /dev/null
 }
 
+skip_existing_java() {
+    if command_exists java; then
+        log_warning "跳过: 检测到已有 Java，不安装 sdkman 或默认 JDK"
+        return 0
+    fi
+
+    return 1
+}
+
 run_bash_without_nounset() {
     env -u SHELLOPTS bash "$@"
 }
@@ -80,7 +89,7 @@ load_sdkman() {
 install_sdkman() {
     load_sdkman
     if command_exists sdk; then
-        log_success "sdkman 已安装 (版本: $(run_without_nounset sdk version 2>/dev/null | head -1))"
+        log_success "sdkman 已安装 (版本: $(run_without_nounset sdk version 2>&1 | head -1))"
         return 0
     fi
 
@@ -132,5 +141,9 @@ install_default_jdk() {
 }
 
 # 主流程
+if skip_existing_java; then
+    exit 0
+fi
+
 install_sdkman
 install_default_jdk
