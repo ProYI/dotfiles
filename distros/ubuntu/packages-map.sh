@@ -12,6 +12,9 @@ declare -A PACKAGE_MAP=(
     # 实用工具
     ["fd"]="fd-find"
 
+    # 浏览器
+    ["chromium"]="chromium-browser"
+
     # 字体
     ["nerd-font-jetbrains-mono"]="fonts-jetbrains-mono-nerd"
     ["cjk-font"]="fonts-noto-cjk"

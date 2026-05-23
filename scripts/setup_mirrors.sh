@@ -84,7 +84,26 @@ setup_ubuntu_mirrors() {
     backup_sources "/etc/apt/sources.list"
 
     # 获取 Ubuntu 版本代号
-    local codename=$(lsb_release -cs)
+    local codename
+    codename=$(lsb_release -cs 2>/dev/null || true)
+    log_info "lsb_release -cs = ${codename:-<空>}"
+
+    if [ -z "$codename" ]; then
+        if [ -f /etc/os-release ]; then
+            . /etc/os-release
+            codename="${VERSION_CODENAME:-}"
+        fi
+        log_info "/etc/os-release VERSION_CODENAME = ${codename:-<空>}"
+    fi
+
+    if [ -z "$codename" ]; then
+        log_warning "无法获取 Ubuntu 版本代号（lsb_release 和 VERSION_CODENAME 均不可用）"
+        log_warning "跳过 Ubuntu 镜像源配置"
+        log_info "你可以手动编辑 /etc/apt/sources.list 配置正确的源"
+        return 0
+    fi
+
+    log_info "版本代号 = ${codename}，写入源配置..."
 
     # 使用阿里云镜像
     cat <<EOF | sudo tee /etc/apt/sources.list > /dev/null
@@ -111,7 +130,24 @@ setup_debian_mirrors() {
     backup_sources "/etc/apt/sources.list"
 
     # 获取 Debian 版本代号
-    local codename=$(lsb_release -cs)
+    local codename
+    codename=$(lsb_release -cs 2>/dev/null || true)
+    log_info "lsb_release -cs = ${codename:-<空>}"
+
+    if [ -z "$codename" ]; then
+        if [ -f /etc/os-release ]; then
+            . /etc/os-release
+            codename="${VERSION_CODENAME:-}"
+        fi
+        log_info "/etc/os-release VERSION_CODENAME = ${codename:-<空>}"
+    fi
+
+    if [ -z "$codename" ]; then
+        log_warning "无法获取 Debian 版本代号（lsb_release 和 VERSION_CODENAME 均不可用）"
+        log_warning "跳过 Debian 镜像源配置"
+        log_info "你可以手动编辑 /etc/apt/sources.list 配置正确的源"
+        return 0
+    fi
 
     # 使用阿里云镜像
     cat <<EOF | sudo tee /etc/apt/sources.list > /dev/null

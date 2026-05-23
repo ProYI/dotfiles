@@ -1,7 +1,6 @@
 #!/bin/bash
 # Arch Linux 安装脚本
 
-
 log_warning() {
     echo -e "\033[1;33m⚠${NC} 跳过: $1"
 }
@@ -27,6 +26,17 @@ aurpkg_installed() {
     fi
 }
 
+# 检查逻辑包名是否被用户选中
+is_package_selected() {
+    local pkg_name="$1"
+    local selected="${DOTFILES_SELECTED_PACKAGES:-}"
+    local IFS=','
+    for p in $selected; do
+        [[ "$p" == "$pkg_name" ]] && return 0
+    done
+    return 1
+}
+
 echo "开始 Arch Linux 系统配置..."
 
 # 1. 设置系统语言
@@ -48,24 +58,28 @@ sudo reflector --country China --latest 5 --sort rate --save /etc/pacman.d/mirro
 echo "Updating system..."
 sudo pacman -Syu --noconfirm
 
-# 5. 从 packages.txt 安装软件包（通过包名映射）
+# 5. 从 packages-map 解析包名映射
 if [ -f "$DOTFILES_DIR/distros/arch/packages-map.sh" ]; then
     source "$DOTFILES_DIR/distros/arch/packages-map.sh"
 fi
 
+# 6. 从 packages.txt 安装软件包
 if [ -f "$DOTFILES_DIR/distros/arch/packages.txt" ]; then
     echo "安装软件包..."
     packages=()
     while IFS= read -r line; do
         [[ -z "$line" || "$line" =~ ^# ]] && continue
 
-        # 检查是否已安装
+        if ! is_package_selected "$line"; then
+            log_warning "跳过 $line（未选择）"
+            continue
+        fi
+
         if pkg_installed "$line"; then
             log_warning "检测到已有 $line，不重新安装"
             continue
         fi
 
-        # AUR 包检查
         if ! pkg_installed "$line" && aurpkg_installed "$line"; then
             log_warning "检测到已有 $line（AUR），不重新安装"
             continue
