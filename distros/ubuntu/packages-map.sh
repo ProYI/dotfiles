@@ -2,7 +2,7 @@
 # Ubuntu 包名映射
 # 逻辑包名 -> Ubuntu 实际包名
 
-declare -A PACKAGE_MAP=(
+declare -gA PACKAGE_MAP=(
     # 基础工具
     ["build-tools"]="build-essential"
 

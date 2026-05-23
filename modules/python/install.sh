@@ -3,23 +3,11 @@
 
 set -euo pipefail
 
+MODULE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MODULE_NAME="python"
 
-log_info() {
-    echo -e "\033[0;34m==>\033[0m [${MODULE_NAME}] $1"
-}
-
-log_success() {
-    echo -e "\033[0;32m✓\033[0m [${MODULE_NAME}] $1"
-}
-
-log_warning() {
-    echo -e "\033[1;33m⚠\033[0m [${MODULE_NAME}] $1"
-}
-
-command_exists() {
-    command -v "$1" &> /dev/null
-}
+# shellcheck disable=SC1091
+source "$MODULE_DIR/../../scripts/lib/module.sh"
 
 install_python3() {
     if command_exists python3; then

@@ -1,23 +1,11 @@
 #!/bin/bash
 # 符号链接管理脚本
 
-# 颜色输出
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-RED='\033[0;31m'
-NC='\033[0m' # No Color
+DOTFILES_DIR="${DOTFILES_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+export DOTFILES_DIR
 
-log_success() {
-    echo -e "${GREEN}✓${NC} $1"
-}
-
-log_warning() {
-    echo -e "${YELLOW}⚠${NC} $1"
-}
-
-log_error() {
-    echo -e "${RED}✗${NC} $1"
-}
+# shellcheck disable=SC1091
+source "$DOTFILES_DIR/scripts/lib/common.sh"
 
 # 创建符号链接
 create_link() {

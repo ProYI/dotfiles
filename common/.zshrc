@@ -15,46 +15,9 @@ setopt HIST_IGNORE_DUPS
 setopt HIST_SAVE_NO_DUPS
 
 # === 通用配置（与 .bashrc 保持一致）===
-
-# 加载通用环境变量
-if [ -f "$HOME/.dotfiles/common/shell/exports.sh" ]; then
-    source "$HOME/.dotfiles/common/shell/exports.sh"
-fi
-
-# 加载通用别名
-if [ -f "$HOME/.dotfiles/common/shell/aliases.sh" ]; then
-    source "$HOME/.dotfiles/common/shell/aliases.sh"
-fi
-
-# 加载通用函数
-if [ -f "$HOME/.dotfiles/common/shell/functions.sh" ]; then
-    source "$HOME/.dotfiles/common/shell/functions.sh"
-fi
-
-# 加载 Linux 通用配置
-if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-    if [ -f "$HOME/.dotfiles/linux/shell/exports.sh" ]; then
-        source "$HOME/.dotfiles/linux/shell/exports.sh"
-    fi
-    if [ -f "$HOME/.dotfiles/linux/shell/aliases.sh" ]; then
-        source "$HOME/.dotfiles/linux/shell/aliases.sh"
-    fi
-fi
-
-# 加载发行版特定配置
-if [ -f /etc/os-release ]; then
-    . /etc/os-release
-    DISTRO_CONFIG="$HOME/.dotfiles/distros/${ID}/shell/${ID}.sh"
-    if [ -f "$DISTRO_CONFIG" ]; then
-        source "$DISTRO_CONFIG"
-    fi
-fi
-
-# 检测 WSL（叠加在发行版配置之上）
-if grep -qEi "(Microsoft|WSL)" /proc/version &> /dev/null 2>&1; then
-    if [ -f "$HOME/.dotfiles/wsl/shell/wsl.sh" ]; then
-        source "$HOME/.dotfiles/wsl/shell/wsl.sh"
-    fi
+export DOTFILES_DIR="${DOTFILES_DIR:-$HOME/.dotfiles}"
+if [ -f "$DOTFILES_DIR/common/shell/loader.sh" ]; then
+    source "$DOTFILES_DIR/common/shell/loader.sh"
 fi
 
 # 重载别名：reload 指向 .zshrc
@@ -85,8 +48,8 @@ zinit light zsh-users/zsh-autosuggestions
 zinit light joshskidmore/zsh-fzf-tab-completion
 
 # 加载 zsh 专属别名
-if [ -f "$HOME/.dotfiles/common/shell/zsh-aliases.sh" ]; then
-    source "$HOME/.dotfiles/common/shell/zsh-aliases.sh"
+if [ -f "$DOTFILES_DIR/common/shell/zsh-aliases.sh" ]; then
+    source "$DOTFILES_DIR/common/shell/zsh-aliases.sh"
 fi
 
 # 如果 .zshrc.local 存在，加载私有配置

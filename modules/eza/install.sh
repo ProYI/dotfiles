@@ -3,23 +3,13 @@
 
 set -euo pipefail
 
+MODULE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MODULE_NAME="eza"
 
-log_info() {
-    echo -e "\033[0;34m==>\033[0m [${MODULE_NAME}] $1"
-}
-
-log_success() {
-    echo -e "\033[0;32m✓\033[0m [${MODULE_NAME}] $1"
-}
-
-log_warning() {
-    echo -e "\033[1;33m⚠\033[0m [${MODULE_NAME}] $1"
-}
-
-command_exists() {
-    command -v "$1" &> /dev/null
-}
+# shellcheck disable=SC1091
+source "$MODULE_DIR/../../scripts/lib/module.sh"
+# shellcheck disable=SC1091
+source "$DOTFILES_DIR/scripts/lib/proxy.sh"
 
 skip_existing_eza() {
     if command_exists eza; then
@@ -90,6 +80,7 @@ download_eza_key() {
 }
 
 install_from_eza_apt_repo() {
+    setup_proxy_env
     if ! command_exists apt-get; then
         return 1
     fi

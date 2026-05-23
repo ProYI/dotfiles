@@ -3,32 +3,14 @@
 
 set -e
 
-# 颜色输出
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-YELLOW='\033[1;33m'
-RED='\033[0;31m'
-NC='\033[0m' # No Color
-
 # Dotfiles 目录
 DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export DOTFILES_DIR
 
-log_info() {
-    echo -e "${BLUE}==>${NC} $1"
-}
-
-log_success() {
-    echo -e "${GREEN}✓${NC} $1"
-}
-
-log_warning() {
-    echo -e "${YELLOW}⚠${NC} $1"
-}
-
-log_error() {
-    echo -e "${RED}✗${NC} $1"
-}
+# shellcheck disable=SC1091
+source "$DOTFILES_DIR/scripts/lib/common.sh"
+# shellcheck disable=SC1091
+source "$DOTFILES_DIR/scripts/lib/packages.sh"
 
 SKIP_RECORDS=()
 
@@ -36,10 +18,6 @@ record_skip() {
     local message="$1"
     SKIP_RECORDS+=("$message")
     log_warning "跳过: $message"
-}
-
-command_exists() {
-    command -v "$1" &> /dev/null
 }
 
 # 加载系统检测脚本
@@ -102,304 +80,6 @@ install_distro_specific() {
     else
         log_warning "未找到 $distro 的安装脚本"
     fi
-}
-
-# ============================================================
-# 交互式包/模块选择系统
-# ============================================================
-
-# 解析 config/packages.conf，填充数组
-# PACKAGES_BY_CATEGORY: 关联数组 category->包列表（空格分隔）
-# MODULES_BY_CATEGORY:  关联数组 category->模块列表（空格分隔）
-# ALL_CATEGORIES:       分类列表（空格分隔）
-# PACKAGE_ORDER:        包在UI中的顺序（每行 category item label）
-declare -A PACKAGES_BY_CATEGORY
-declare -A MODULES_BY_CATEGORY
-ALL_CATEGORIES=()
-PACKAGE_ORDER=()
-
-parse_package_conf() {
-    local conf_file="$DOTFILES_DIR/config/packages.conf"
-    if [ ! -f "$conf_file" ]; then
-        log_error "配置文件不存在: $conf_file"
-        return 1
-    fi
-
-    local current_category="基础"
-
-    while IFS= read -r line; do
-        # 跳过空行
-        [[ -z "$line" ]] && continue
-
-        # 跳过配置说明注释
-        [[ "$line" =~ ^#.*格式 ]] && continue
-        [[ "$line" =~ ^#.*分类说明 ]] && continue
-
-        # 分类标题行: # ==================== 基础（必装，不可跳过） ====================
-        if [[ "$line" =~ ^#[[:space:]]*(=+) ]]; then
-            # 去掉所有 === 得到标题文字
-            local title=$(echo "$line" | sed 's/^#[[:space:]]*//; s/[[:space:]]*=*//g')
-            # 取第一个中文括号前的内容作为分类名
-            local raw_category
-            if [[ "$title" == *"（"* ]] || [[ "$title" == *"("* ]]; then
-                raw_category=$(echo "$title" | sed 's/[（(].*//' | sed 's/[[:space:]]*$//')
-            else
-                raw_category="$title"
-            fi
-            current_category="$raw_category"
-            # 记录分类（去重）
-            if [[ "$current_category" != "基础" ]]; then
-                local found=false
-                for c in "${ALL_CATEGORIES[@]}"; do
-                    [[ "$c" == "$current_category" ]] && found=true && break
-                done
-                $found || ALL_CATEGORIES+=("$current_category")
-            fi
-            continue
-        fi
-
-        # 跳过其他注释
-        [[ "$line" =~ ^# ]] && continue
-
-        # 包:格式
-        local first
-        first=$(echo "$line" | cut -d':' -f1 | sed 's/[[:space:]]//g')
-
-        case "$first" in
-            包)
-                local pkg_name
-                pkg_name=$(echo "$line" | cut -d':' -f2 | sed 's/[[:space:]]//g')
-                PACKAGES_BY_CATEGORY["$current_category"]="${PACKAGES_BY_CATEGORY[$current_category]:-} $pkg_name"
-                ;;
-            模块)
-                local mod_name mod_category
-                mod_name=$(echo "$line" | cut -d':' -f2 | sed 's/[[:space:]]//g')
-                mod_category=$(echo "$line" | cut -d':' -f3 | sed 's/[[:space:]]//g')
-                MODULES_BY_CATEGORY["$mod_category"]="${MODULES_BY_CATEGORY[$mod_category]:-} $mod_name"
-                # 确保模块所属分类被记录
-                local found=false
-                for c in "${ALL_CATEGORIES[@]}"; do
-                    [[ "$c" == "$mod_category" ]] && found=true && break
-                done
-                $found || ALL_CATEGORIES+=("$mod_category")
-                ;;
-        esac
-    done < "$conf_file"
-}
-
-# 交互式选择：展示所有分类，用户逐个勾选
-# 设置 SELECTED_PACKAGES 和 SELECTED_MODULES 数组
-SELECTED_PACKAGES=()
-SELECTED_MODULES=()
-
-select_packages_interactive() {
-    echo ""
-    echo -e "${BLUE}╔═══════════════════════════════════════╗${NC}"
-    echo -e "${BLUE}║${NC}     软件包和模块选择                    ${BLUE}║${NC}"
-    echo -e "${BLUE}╚═══════════════════════════════════════╝${NC}"
-    echo ""
-
-    # 显示基础包（必装）
-    echo -e "${GREEN}📦 基础（必装）${NC}"
-    for pkg in ${PACKAGES_BY_CATEGORY["基础"]:-}; do
-        echo -e "  ${GREEN}[✓]${NC} $pkg"
-        SELECTED_PACKAGES+=("$pkg")
-    done
-    echo ""
-
-    # 构建 flat list: 每个条目格式 "category::type::name"
-    local -a entries=()
-
-    local modules_category="可插拔模块"
-
-    for category in "${ALL_CATEGORIES[@]}"; do
-        [[ "$category" == "基础" || "$category" == "模块" ]] && continue
-
-        for pkg in ${PACKAGES_BY_CATEGORY[$category]:-}; do
-            entries+=("$category::pkg::$pkg")
-        done
-        for mod in ${MODULES_BY_CATEGORY[$category]:-}; do
-            entries+=("$modules_category::mod::$mod")
-        done
-    done
-
-    # 默认全选；交互中通过切换改为 [x]/[ ] 样式
-    local -a selected_flags=()
-    local idx
-    for ((idx=0; idx<${#entries[@]}; idx++)); do
-        selected_flags[idx]=1
-    done
-
-    while true; do
-        local global_idx=0
-        local -a display_categories=()
-        local -a display_to_entry_idx=()
-        for category in "${ALL_CATEGORIES[@]}"; do
-            [[ "$category" == "基础" || "$category" == "模块" ]] && continue
-            display_categories+=("$category")
-        done
-        display_categories+=("$modules_category")
-
-        for category in "${display_categories[@]}"; do
-
-            local emoji=""
-            case "$category" in
-                开发工具) emoji="🔧" ;;
-                系统工具) emoji="💻" ;;
-                字体)     emoji="🔤" ;;
-                浏览器)   emoji="🌐" ;;
-                可插拔模块) emoji="🧩" ;;
-                *)        emoji="📦" ;;
-            esac
-
-            echo -e "${emoji} ${category}"
-
-            local -a cat_items=()
-            local -a cat_item_indexes=()
-            for ent_i in "${!entries[@]}"; do
-                local ent="${entries[$ent_i]}"
-                local ent_cat="${ent%%::*}"
-                if [[ "$ent_cat" == "$category" ]]; then
-                    cat_items+=("$ent")
-                    cat_item_indexes+=("$ent_i")
-                fi
-            done
-
-            local total=${#cat_items[@]}
-            for ((i=0; i<total; i++)); do
-                global_idx=$((global_idx + 1))
-                local ent="${cat_items[$i]}"
-                local rest="${ent#*::}"
-                local ent_type="${rest%%::*}"
-                local ent_name="${rest#*::}"
-                local display_name="$ent_name"
-                [[ "$ent_type" == "mod" ]] && display_name="[$ent_name]"
-                local real_idx="${cat_item_indexes[$i]}"
-                display_to_entry_idx[$global_idx]="$real_idx"
-                local mark="[ ]"
-                [[ "${selected_flags[$real_idx]}" == "1" ]] && mark="${GREEN}[✓]${NC}"
-                printf "  %b [%s] %-16s" "$mark" "$global_idx" "$display_name"
-                if (( (global_idx % 2 == 0) || i + 1 == total )); then echo ""; fi
-            done
-            echo ""
-            echo ""
-        done
-
-        echo "输入编号/范围切换选择（如 3 8-12），a=全选，n=全不选，回车或 q=确认："
-        read -r reply
-
-        if [[ -z "$reply" || "$reply" == "q" ]]; then
-            break
-        fi
-
-        if [[ "$reply" == "a" ]]; then
-            for ((idx=0; idx<${#entries[@]}; idx++)); do
-                selected_flags[idx]=1
-            done
-            echo ""
-            continue
-        fi
-
-        if [[ "$reply" == "n" ]]; then
-            for ((idx=0; idx<${#entries[@]}; idx++)); do
-                selected_flags[idx]=0
-            done
-            echo ""
-            continue
-        fi
-
-        for token in $reply; do
-            if [[ "$token" == *-* ]]; then
-                local start_num="${token%%-*}"
-                local end_num="${token#*-}"
-                if [[ "$start_num" =~ ^[0-9]+$ && "$end_num" =~ ^[0-9]+$ ]]; then
-                    local n
-                    for ((n=start_num; n<=end_num; n++)); do
-                        if ((n >= 1 && n <= global_idx)); then
-                            local flag_idx="${display_to_entry_idx[$n]}"
-                            [[ -z "$flag_idx" ]] && continue
-                            if [[ "${selected_flags[$flag_idx]}" == "1" ]]; then
-                                selected_flags[$flag_idx]=0
-                            else
-                                selected_flags[$flag_idx]=1
-                            fi
-                        fi
-                    done
-                fi
-            else
-                if [[ "$token" =~ ^[0-9]+$ ]]; then
-                    local num="$token"
-                    if ((num >= 1 && num <= global_idx)); then
-                        local flag_idx="${display_to_entry_idx[$num]}"
-                        [[ -z "$flag_idx" ]] && continue
-                        if [[ "${selected_flags[$flag_idx]}" == "1" ]]; then
-                            selected_flags[$flag_idx]=0
-                        else
-                            selected_flags[$flag_idx]=1
-                        fi
-                    fi
-                fi
-            fi
-        done
-        echo ""
-    done
-
-    for ent_i in "${!entries[@]}"; do
-        if [[ "${selected_flags[$ent_i]}" != "1" ]]; then
-            continue
-        fi
-        local ent="${entries[$ent_i]}"
-        local rest="${ent#*::}"
-        local ent_type="${rest%%::*}"
-        local ent_name="${rest#*::}"
-        [[ "$ent_type" == "pkg" ]] && SELECTED_PACKAGES+=("$ent_name")
-        [[ "$ent_type" == "mod" ]] && SELECTED_MODULES+=("$ent_name")
-    done
-
-    echo ""
-    if [ ${#SELECTED_PACKAGES[@]} -eq 0 ] && [ ${#SELECTED_MODULES[@]} -eq 0 ]; then
-        log_warning "未选择任何包"
-    else
-        log_info "已选择 ${#SELECTED_PACKAGES[@]} 个包、${#SELECTED_MODULES[@]} 个模块"
-    fi
-}
-
-# 按命令行参数选择（非交互）
-select_packages_arg() {
-    local selected_categories="$1"
-
-    for cat in $selected_categories; do
-        case "$cat" in
-            基础)
-                for pkg in ${PACKAGES_BY_CATEGORY["基础"]:-}; do
-                    SELECTED_PACKAGES+=("$pkg")
-                done
-                ;;
-            *)
-                for pkg in ${PACKAGES_BY_CATEGORY[$cat]:-}; do
-                    SELECTED_PACKAGES+=("$pkg")
-                done
-                for mod in ${MODULES_BY_CATEGORY[$cat]:-}; do
-                    SELECTED_MODULES+=("$mod")
-                done
-                ;;
-        esac
-    done
-
-    log_info "已选择 ${#SELECTED_PACKAGES[@]} 个包、${#SELECTED_MODULES[@]} 个模块"
-}
-
-select_all_packages() {
-    for category in "${ALL_CATEGORIES[@]}"; do
-        [[ "$category" == "基础" || "$category" == "模块" ]] && continue
-        for pkg in ${PACKAGES_BY_CATEGORY[$category]:-}; do
-            SELECTED_PACKAGES+=("$pkg")
-        done
-        for mod in ${MODULES_BY_CATEGORY[$category]:-}; do
-            SELECTED_MODULES+=("$mod")
-        done
-    done
-    log_info "已选择全部 ${#SELECTED_PACKAGES[@]} 个包、${#SELECTED_MODULES[@]} 个模块"
 }
 
 # ============================================================
@@ -593,18 +273,18 @@ main() {
     log_info "开始软件包和模块选择..."
 
     # 解析 packages.conf
-    parse_package_conf
+    dotfiles_parse_package_conf
 
     # 选择模式
     if [[ -n "$PACKAGES_ARG" ]]; then
-        select_packages_arg "$PACKAGES_ARG"
+        dotfiles_select_packages_arg "$PACKAGES_ARG"
     elif [ "$SELECT_ALL" = true ]; then
-        select_all_packages
+        dotfiles_select_all_packages
     elif [[ -n "$MODULES_ARG" ]]; then
         # 只指定了 --modules，包仍然交互式选择
-        select_packages_interactive
+        dotfiles_select_packages_interactive
     else
-        select_packages_interactive
+        dotfiles_select_packages_interactive
     fi
 
     # 4. 创建符号链接（共通配置）

@@ -3,28 +3,11 @@
 
 set -e
 
-# 颜色输出
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-YELLOW='\033[1;33m'
-RED='\033[0;31m'
-NC='\033[0m'
+DOTFILES_DIR="${DOTFILES_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+export DOTFILES_DIR
 
-log_info() {
-    echo -e "${BLUE}==>${NC} $1"
-}
-
-log_success() {
-    echo -e "${GREEN}✓${NC} $1"
-}
-
-log_warning() {
-    echo -e "${YELLOW}⚠${NC} $1"
-}
-
-log_error() {
-    echo -e "${RED}✗${NC} $1"
-}
+# shellcheck disable=SC1091
+source "$DOTFILES_DIR/scripts/lib/common.sh"
 
 # 备份原有镜像源配置
 backup_sources() {

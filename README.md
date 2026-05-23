@@ -69,12 +69,12 @@ dotfiles/
 │
 ├── distros/                   # 发行版特定配置
 │   ├── arch/
-│   │   ├── packages.txt      # 软件包列表
+│   │   ├── packages-map.sh   # 逻辑包名到实际包名的映射
 │   │   ├── install.sh        # 安装脚本
 │   │   └── shell/
 │   │       └── arch.sh       # Arch 特定配置
 │   ├── ubuntu/
-│   │   ├── packages.txt
+│   │   ├── packages-map.sh
 │   │   ├── install.sh
 │   │   └── shell/
 │   │       └── ubuntu.sh
@@ -92,6 +92,7 @@ dotfiles/
 │       └── wsl.sh
 │
 ├── scripts/                   # 辅助脚本
+│   ├── lib/                  # 公共脚本库
 │   ├── detect_os.sh          # 系统检测
 │   ├── setup_mirrors.sh      # 镜像源配置（国内优化）
 │   ├── link.sh               # 符号链接管理
@@ -345,11 +346,13 @@ mkdir -p distros/newdistro/{shell,config}
 2. 创建配置文件：
 ```bash
 touch distros/newdistro/shell/newdistro.sh
-touch distros/newdistro/packages.txt
+touch distros/newdistro/packages-map.sh
 touch distros/newdistro/install.sh
 ```
 
-3. 编辑配置文件，参考现有发行版的格式
+3. 在 `install.sh` 的发行版分支中接入 `newdistro`
+
+4. 编辑配置文件，参考现有发行版的格式
 
 ## 常用命令
 

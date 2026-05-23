@@ -9,21 +9,8 @@ RUSTUP_DIST_SERVER="${RUSTUP_DIST_SERVER:-https://rsproxy.cn}"
 RUSTUP_UPDATE_ROOT="${RUSTUP_UPDATE_ROOT:-https://rsproxy.cn/rustup}"
 RUSTUP_INIT_URL="${RUSTUP_INIT_URL:-https://rsproxy.cn/rustup-init.sh}"
 
-log_info() {
-    echo -e "\033[0;34m==>\033[0m [${MODULE_NAME}] $1"
-}
-
-log_success() {
-    echo -e "\033[0;32m✓\033[0m [${MODULE_NAME}] $1"
-}
-
-log_warning() {
-    echo -e "\033[1;33m⚠\033[0m [${MODULE_NAME}] $1"
-}
-
-command_exists() {
-    command -v "$1" &> /dev/null
-}
+# shellcheck disable=SC1091
+source "$MODULE_DIR/../../scripts/lib/module.sh"
 
 load_cargo_env() {
     if [ -f "$HOME/.cargo/env" ]; then

@@ -3,11 +3,18 @@
 
 set -u
 
+DOTFILES_DIR="${DOTFILES_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
+
+# shellcheck disable=SC1091
+source "$DOTFILES_DIR/scripts/lib/common.sh"
+# shellcheck disable=SC1091
+source "$DOTFILES_DIR/scripts/lib/packages.sh"
 
 CHECK_SCOPE="${1:-all}"
 FAILED=0
@@ -34,10 +41,6 @@ fail() {
     FAILED=1
 }
 
-command_exists() {
-    command -v "$1" >/dev/null 2>&1
-}
-
 detect_os() {
     if [ -f /etc/os-release ]; then
         . /etc/os-release
@@ -45,16 +48,6 @@ detect_os() {
     else
         echo "unknown"
     fi
-}
-
-split_csv() {
-    local value="$1"
-    local IFS=','
-    local item
-
-    for item in $value; do
-        [ -n "$item" ] && echo "$item"
-    done
 }
 
 load_selected_packages() {
@@ -65,19 +58,11 @@ load_selected_packages() {
     if [ -n "${DOTFILES_SELECTED_PACKAGES:-}" ]; then
         while IFS= read -r item; do
             SELECTED_PACKAGES+=("$item")
-        done < <(split_csv "$DOTFILES_SELECTED_PACKAGES")
+        done < <(dotfiles_split_csv "$DOTFILES_SELECTED_PACKAGES")
     else
-        local distro
-        local packages_file
-
-        distro="$(detect_os)"
-        packages_file="$DOTFILES_DIR/distros/$distro/packages.txt"
-        if [ -f "$packages_file" ]; then
-            while IFS= read -r line; do
-                [[ -z "$line" || "$line" =~ ^# ]] && continue
-                SELECTED_PACKAGES+=("$line")
-            done < "$packages_file"
-        fi
+        while IFS= read -r item; do
+            SELECTED_PACKAGES+=("$item")
+        done < <(dotfiles_list_config_packages)
     fi
 
     SELECTED_PACKAGES_LOADED=true
@@ -91,7 +76,7 @@ load_selected_modules() {
     if [ -n "${DOTFILES_SELECTED_MODULES:-}" ]; then
         while IFS= read -r item; do
             SELECTED_MODULES+=("$item")
-        done < <(split_csv "$DOTFILES_SELECTED_MODULES")
+        done < <(dotfiles_split_csv "$DOTFILES_SELECTED_MODULES")
     fi
 
     SELECTED_MODULES_LOADED=true
