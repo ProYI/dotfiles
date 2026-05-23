@@ -298,18 +298,42 @@ bash common/font/nerd-font.sh install
 
 ### 添加软件包
 
-编辑对应发行版的 `packages.txt` 文件：
+优先把新软件写成“逻辑包名”，放到 `config/packages.conf` 中：
 
 ```bash
-# 例如：Arch Linux
-vim distros/arch/packages.txt
+vim config/packages.conf
 ```
 
-然后运行：
+例如添加 Firefox ESR：
+
+```conf
+# ==================== 浏览器 ====================
+包:firefox
+包:firefox-esr
+包:chromium
+```
+
+各发行版实际包名不同的情况，在对应 `packages-map.sh` 中做映射：
 
 ```bash
-./distros/arch/install.sh
+# 例如 Ubuntu 没有 firefox-esr 时，退化安装普通 firefox
+["firefox-esr"]="firefox"
 ```
+
+处理规则：
+
+- `config/packages.conf` 写逻辑包名，表达“要安装什么能力/软件”。
+- `distros/<distro>/packages-map.sh` 写发行版实际包名映射。
+- 如果某发行版实际包名和逻辑包名一致，不需要写映射。
+- 如果一个逻辑包需要多个实际包，可以映射成空格分隔的列表，例如 `["build-tools"]="gcc make"`。
+- 如果安装需要第三方源、下载 release、安装脚本或版本差异较大，不要放普通包列表，改成 `modules/<name>/install.sh` 模块。
+
+推荐流程：
+
+1. 先加到 `config/packages.conf`。
+2. 如果确定各发行版同名，不动 `packages-map.sh`。
+3. 如果某发行版包名不同，在对应 `packages-map.sh` 加映射。
+4. 如果需要加源、下载二进制或处理复杂兼容逻辑，升级成模块。
 
 ### 添加新的发行版支持
 
