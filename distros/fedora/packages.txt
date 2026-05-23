@@ -25,10 +25,8 @@ fzf
 ripgrep
 fd
 bat
-eza
 zoxide
 jq
 
 # 字体（终端图标 + 中文显示）
-nerd-font-jetbrains-mono
 cjk-font

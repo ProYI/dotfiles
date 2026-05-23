@@ -1,7 +1,6 @@
 #!/bin/bash
-# Nerd Font 检测脚本
-# 职责：运行时检测字体是否就绪，提示用户是否需要安装
-# 安装职责在各发行版的 packages.txt 中
+# Nerd Font 检测和安装入口
+# 职责：运行时检测字体是否就绪，并委托模块安装上游 Nerd Font。
 
 # 推荐的 Nerd Font 列表
 RECOMMENDED_FONTS=(
@@ -59,6 +58,16 @@ check_cjk_font() {
     return 0
 }
 
+install_nerd_font() {
+    local script_dir
+    local dotfiles_dir
+
+    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    dotfiles_dir="${DOTFILES_DIR:-$(cd "$script_dir/../.." && pwd)}"
+
+    bash "$dotfiles_dir/modules/nerd-font/install.sh"
+}
+
 # 主函数
 case "${1:-check}" in
     check)
@@ -66,7 +75,10 @@ case "${1:-check}" in
         echo ""
         check_cjk_font
         ;;
+    install)
+        install_nerd_font
+        ;;
     *)
-        echo "用法: $0 {check}"
+        echo "用法: $0 {check|install}"
         ;;
 esac

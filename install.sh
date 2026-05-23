@@ -430,6 +430,7 @@ install_modules() {
             docker) cmds=(docker docker docker-compose) ;;
             python) cmds=(python3 pip3 python) ;;
             rust)  cmds=(rust cargo rustup rust) ;;
+            eza)   cmds=(eza) ;;
             *)     cmds=() ;;
         esac
 

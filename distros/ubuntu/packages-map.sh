@@ -16,7 +16,6 @@ declare -A PACKAGE_MAP=(
     ["chromium"]="chromium-browser"
 
     # 字体
-    ["nerd-font-jetbrains-mono"]="fonts-jetbrains-mono-nerd"
     ["cjk-font"]="fonts-noto-cjk"
 )
 

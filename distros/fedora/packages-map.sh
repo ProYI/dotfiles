@@ -13,7 +13,6 @@ declare -A PACKAGE_MAP=(
     ["fd"]="fd-find"
 
     # 字体
-    ["nerd-font-jetbrains-mono"]="jetbrains-mono-fonts-all"
     ["cjk-font"]="google-noto-sans-cjk-fonts"
 )
 
