@@ -6,7 +6,7 @@
 size = 12.0
 
 # 主字体（英文 + 图标）
-normal.family = "JetBrains Mono Nerd Font"
+normal.family = "JetBrainsMono Nerd Font"
 
 # 中文 CJK 回退
 # Alacritty 使用 fallback font 机制
@@ -15,7 +15,7 @@ family = "Noto Sans CJK SC"
 style = "Regular"
 
 [[font.bold]]
-family = "JetBrains Mono Nerd Font"
+family = "JetBrainsMono Nerd Font"
 style = "Bold"
 
 [[font.bold]]

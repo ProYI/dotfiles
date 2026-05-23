@@ -611,8 +611,9 @@ main() {
     create_symlinks
 
     # 5. 根据操作系统执行特定安装（包安装 + 系统配置）
-    #    将 SELECTED_PACKAGES 导出为逗号分隔字符串，供 distro 脚本使用
+    #    将选择结果导出为逗号分隔字符串，供 distro 脚本和 doctor 使用
     export DOTFILES_SELECTED_PACKAGES="$(IFS=,; echo "${SELECTED_PACKAGES[*]}")"
+    export DOTFILES_SELECTED_MODULES="$(IFS=,; echo "${SELECTED_MODULES[*]}")"
 
     case "$OS" in
         arch)

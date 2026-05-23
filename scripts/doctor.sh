@@ -11,6 +11,10 @@ NC='\033[0m'
 
 CHECK_SCOPE="${1:-all}"
 FAILED=0
+SELECTED_PACKAGES_LOADED=false
+SELECTED_MODULES_LOADED=false
+SELECTED_PACKAGES=()
+SELECTED_MODULES=()
 
 section() {
     echo ""
@@ -34,11 +38,96 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
+detect_os() {
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        echo "${ID:-unknown}"
+    else
+        echo "unknown"
+    fi
+}
+
+split_csv() {
+    local value="$1"
+    local IFS=','
+    local item
+
+    for item in $value; do
+        [ -n "$item" ] && echo "$item"
+    done
+}
+
+load_selected_packages() {
+    if [ "$SELECTED_PACKAGES_LOADED" = true ]; then
+        return
+    fi
+
+    if [ -n "${DOTFILES_SELECTED_PACKAGES:-}" ]; then
+        while IFS= read -r item; do
+            SELECTED_PACKAGES+=("$item")
+        done < <(split_csv "$DOTFILES_SELECTED_PACKAGES")
+    else
+        local distro
+        local packages_file
+
+        distro="$(detect_os)"
+        packages_file="$DOTFILES_DIR/distros/$distro/packages.txt"
+        if [ -f "$packages_file" ]; then
+            while IFS= read -r line; do
+                [[ -z "$line" || "$line" =~ ^# ]] && continue
+                SELECTED_PACKAGES+=("$line")
+            done < "$packages_file"
+        fi
+    fi
+
+    SELECTED_PACKAGES_LOADED=true
+}
+
+load_selected_modules() {
+    if [ "$SELECTED_MODULES_LOADED" = true ]; then
+        return
+    fi
+
+    if [ -n "${DOTFILES_SELECTED_MODULES:-}" ]; then
+        while IFS= read -r item; do
+            SELECTED_MODULES+=("$item")
+        done < <(split_csv "$DOTFILES_SELECTED_MODULES")
+    fi
+
+    SELECTED_MODULES_LOADED=true
+}
+
+package_selected() {
+    local wanted="$1"
+    local package
+
+    load_selected_packages
+    for package in "${SELECTED_PACKAGES[@]}"; do
+        [ "$package" = "$wanted" ] && return 0
+    done
+
+    return 1
+}
+
+module_selected() {
+    local wanted="$1"
+    local module
+
+    load_selected_modules
+    for module in "${SELECTED_MODULES[@]}"; do
+        [ "$module" = "$wanted" ] && return 0
+    done
+
+    return 1
+}
+
 load_module_envs() {
     local modules_dir="$DOTFILES_DIR/modules"
     local restore_nounset=false
 
     [ -d "$modules_dir" ] || return
+    load_selected_modules
+    [ "${#SELECTED_MODULES[@]}" -gt 0 ] || return
 
     case "$-" in
         *u*)
@@ -47,8 +136,9 @@ load_module_envs() {
             ;;
     esac
 
-    local env_file
-    for env_file in "$modules_dir"/*/shell/env.sh; do
+    local module env_file
+    for module in "${SELECTED_MODULES[@]}"; do
+        env_file="$modules_dir/$module/shell/env.sh"
         [ -f "$env_file" ] || continue
         # shellcheck disable=SC1090
         source "$env_file"
@@ -99,10 +189,10 @@ check_shell() {
 
     if command_exists zsh; then
         pass "zsh command: $(command -v zsh)"
-        if zsh -i -c 'echo "[doctor] zsh runtime ok"' >/dev/null 2>&1; then
-            pass "zsh runtime: interactive startup passed"
+        if zsh -n "$DOTFILES_DIR/common/.zshrc" >/dev/null 2>&1; then
+            pass "zsh config syntax: passed"
         else
-            fail "zsh runtime: interactive startup failed"
+            fail "zsh config syntax: failed"
         fi
     else
         fail "zsh command: not found"
@@ -117,12 +207,28 @@ font_family_available() {
 check_fonts() {
     section "Fonts"
 
+    local should_check_nerd=false
+    local should_check_cjk=false
+
+    if module_selected nerd-font; then
+        should_check_nerd=true
+    fi
+    if package_selected cjk-font; then
+        should_check_cjk=true
+    fi
+
+    if [ "$should_check_nerd" = false ] && [ "$should_check_cjk" = false ]; then
+        warn "fonts: no selected font packages/modules, skipped"
+        return
+    fi
+
     if ! command_exists fc-list || ! command_exists fc-match; then
         fail "fontconfig: fc-list/fc-match not found"
         return
     fi
 
     local nerd_fonts=(
+        "JetBrainsMono Nerd Font"
         "JetBrains Mono Nerd Font"
         "Cascadia Code"
         "Fira Code Nerd Font"
@@ -143,11 +249,15 @@ check_fonts() {
         fi
     done
 
-    if [ -n "$found_nerd" ]; then
-        pass "Nerd Font: $found_nerd"
-        pass "font match: $(fc-match "$found_nerd" | head -1)"
+    if [ "$should_check_nerd" = true ]; then
+        if [ -n "$found_nerd" ]; then
+            pass "Nerd Font: $found_nerd"
+            pass "font match: $(fc-match "$found_nerd" | head -1)"
+        else
+            fail "Nerd Font: no recommended Nerd Font found"
+        fi
     else
-        fail "Nerd Font: no recommended Nerd Font found"
+        warn "Nerd Font: skipped (module not selected)"
     fi
 
     local found_cjk=""
@@ -158,11 +268,15 @@ check_fonts() {
         fi
     done
 
-    if [ -n "$found_cjk" ]; then
-        pass "CJK Font: $found_cjk"
-        pass "font match: $(fc-match "$found_cjk" | head -1)"
+    if [ "$should_check_cjk" = true ]; then
+        if [ -n "$found_cjk" ]; then
+            pass "CJK Font: $found_cjk"
+            pass "font match: $(fc-match "$found_cjk" | head -1)"
+        else
+            fail "CJK Font: no recommended CJK font found"
+        fi
     else
-        fail "CJK Font: no recommended CJK font found"
+        warn "CJK Font: skipped (package not selected)"
     fi
 }
 
@@ -183,11 +297,16 @@ check_terminal_links() {
 check_module_file() {
     local module="$1"
     local env_file="$DOTFILES_DIR/modules/$module/shell/env.sh"
+    local install_file="$DOTFILES_DIR/modules/$module/install.sh"
+
+    if [ -f "$install_file" ]; then
+        pass "$module module install: $install_file"
+    else
+        fail "$module module install: missing $install_file"
+    fi
 
     if [ -f "$env_file" ]; then
         pass "$module module env: $env_file"
-    else
-        fail "$module module env: missing $env_file"
     fi
 }
 
@@ -205,7 +324,7 @@ check_tool_version() {
             pass "$label: $(command -v "$command_name")"
         fi
     else
-        warn "$label: $command_name not found"
+        fail "$label: $command_name not found"
     fi
 }
 
@@ -221,17 +340,33 @@ check_modules() {
     load_module_envs
 
     local module
-    for module in node java python rust docker; do
+    load_selected_modules
+
+    if [ "${#SELECTED_MODULES[@]}" -eq 0 ]; then
+        warn "modules: no selected modules, skipped"
+        return
+    fi
+
+    for module in "${SELECTED_MODULES[@]}"; do
         if [ -d "$modules_dir/$module" ]; then
             check_module_file "$module"
+        else
+            fail "$module module: missing $modules_dir/$module"
         fi
     done
 
-    check_tool_version "python" python3 python3 --version
-    check_tool_version "node manager" fnm fnm --version
-    check_tool_version "java" java java -version
-    check_tool_version "rust" cargo cargo --version
-    check_tool_version "docker client" docker docker --version
+    module_selected python && check_tool_version "python" python3 python3 --version
+    if module_selected node; then
+        if command_exists fnm; then
+            check_tool_version "node manager" fnm fnm --version
+        else
+            check_tool_version "node" node node --version
+        fi
+    fi
+    module_selected java && check_tool_version "java" java java -version
+    module_selected rust && check_tool_version "rust" cargo cargo --version
+    module_selected docker && check_tool_version "docker client" docker docker --version
+    module_selected eza && check_tool_version "eza" eza eza --version
 }
 
 run_scope() {

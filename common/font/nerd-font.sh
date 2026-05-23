@@ -4,6 +4,7 @@
 
 # 推荐的 Nerd Font 列表
 RECOMMENDED_FONTS=(
+    "JetBrainsMono Nerd Font"
     "JetBrains Mono Nerd Font"
     "Cascadia Code"
     "Fira Code Nerd Font"

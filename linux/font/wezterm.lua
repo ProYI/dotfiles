@@ -6,7 +6,7 @@
 local config = {}
 
 -- 主字体（英文 + 图标）
-config.font = wezterm.font("JetBrains Mono Nerd Font")
+config.font = wezterm.font("JetBrainsMono Nerd Font")
 
 -- 中文 CJK 回退
 config.font_rules = {
@@ -15,7 +15,7 @@ config.font_rules = {
 
 -- 额外字体（自动回退到 CJK）
 config.font_overrides = {
-    "JetBrains Mono Nerd Font",
+    "JetBrainsMono Nerd Font",
     "Noto Sans CJK SC",
 }
 
