@@ -26,28 +26,3 @@ dotfiles_source_if_exists() {
     fi
 }
 
-dotfiles_split_csv() {
-    local value="$1"
-    local IFS=','
-    local item
-
-    for item in $value; do
-        [ -n "$item" ] && echo "$item"
-    done
-}
-
-dotfiles_join_by() {
-    local delimiter="$1"
-    shift || true
-
-    local first=true
-    local item
-    for item in "$@"; do
-        if [ "$first" = true ]; then
-            printf "%s" "$item"
-            first=false
-        else
-            printf "%s%s" "$delimiter" "$item"
-        fi
-    done
-}

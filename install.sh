@@ -1,338 +1,187 @@
 #!/bin/bash
-# Dotfiles 主安装脚本
+# Dotfiles installer: mirrors + base packages + backup + symlinks.
 
-set -e
+set -euo pipefail
 
-# Dotfiles 目录
-DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSTALL_DIR="$HOME/.dotfiles"
+DOTFILES_DIR="$PROJECT_DIR"
 export DOTFILES_DIR
 
 # shellcheck disable=SC1091
-source "$DOTFILES_DIR/scripts/lib/common.sh"
+source "$PROJECT_DIR/scripts/lib/common.sh"
 # shellcheck disable=SC1091
-source "$DOTFILES_DIR/scripts/lib/packages.sh"
+source "$PROJECT_DIR/scripts/detect_os.sh"
+# shellcheck disable=SC1091
+source "$PROJECT_DIR/scripts/lib/package-manager.sh"
 
-SKIP_RECORDS=()
+SKIP_MIRRORS=false
+FORCE_MIRRORS=false
+SKIP_PACKAGES=false
+PACKAGE_CATEGORIES="base"
+PACKAGE_CATEGORIES_SET=false
+YES=false
 
-record_skip() {
-    local message="$1"
-    SKIP_RECORDS+=("$message")
-    log_warning "跳过: $message"
+usage() {
+    cat <<'EOF'
+Usage: ./install.sh [options]
+
+Options:
+  --skip-mirrors          Skip package mirror setup.
+  --force-mirrors         Rewrite mirror config even if domestic mirrors exist.
+  --skip-packages         Skip base package installation.
+  --packages base         Install selected package categories.
+  --packages base,extra   Install base and extra package categories.
+  --yes, -y               Answer yes to install prompts.
+  --help, -h              Show this help.
+EOF
 }
 
-# 加载系统检测脚本
-source "$DOTFILES_DIR/scripts/detect_os.sh"
-
-# 显示欢迎信息
-show_banner() {
-    echo ""
-    echo "╔═══════════════════════════════════════╗"
-    echo "║     Dotfiles 安装脚本                 ║"
-    echo "║     多系统配置管理                    ║"
-    echo "╚═══════════════════════════════════════╝"
-    echo ""
-}
-
-# 备份现有配置
-backup_existing() {
-    log_info "备份现有配置..."
-    bash "$DOTFILES_DIR/scripts/backup.sh"
-}
-
-# 创建符号链接
-create_symlinks() {
-    log_info "创建符号链接..."
-
-    # 链接 .bashrc
-    if [ -f "$DOTFILES_DIR/common/.bashrc" ]; then
-        ln -sf "$DOTFILES_DIR/common/.bashrc" "$HOME/.bashrc"
-        log_success "已链接 .bashrc"
-    fi
-
-    # 链接 .zshrc。旧机器已有 zsh 时保留原有启动配置。
-    if [ -f "$DOTFILES_DIR/common/.zshrc" ]; then
-        if command_exists zsh && [ ! "$HOME/.zshrc" -ef "$DOTFILES_DIR/common/.zshrc" ]; then
-            record_skip "检测到已有 zsh，保留 $HOME/.zshrc"
-        else
-            ln -sf "$DOTFILES_DIR/common/.zshrc" "$HOME/.zshrc"
-            log_success "已链接 .zshrc"
-        fi
-    fi
-
-    # 链接 .profile
-    if [ -f "$DOTFILES_DIR/common/.profile" ]; then
-        ln -sf "$DOTFILES_DIR/common/.profile" "$HOME/.profile"
-        log_success "已链接 .profile"
-    fi
-
-    # 运行通用链接脚本
-    bash "$DOTFILES_DIR/scripts/link.sh"
-}
-
-# 安装发行版特定配置
-install_distro_specific() {
-    local distro="$1"
-    local install_script="$DOTFILES_DIR/distros/$distro/install.sh"
-
-    if [ -f "$install_script" ]; then
-        log_info "运行 $distro 特定安装脚本..."
-        bash "$install_script"
-    else
-        log_warning "未找到 $distro 的安装脚本"
-    fi
-}
-
-# ============================================================
-# 模块安装（按选择的模块列表）
-# ============================================================
-
-install_modules() {
-    local modules_to_install="${1:-}"
-
-    if [ -z "$modules_to_install" ]; then
-        return
-    fi
-
-    local modules_dir="$DOTFILES_DIR/modules"
-    if [ ! -d "$modules_dir" ]; then
-        log_warning "模块目录不存在: $modules_dir"
-        return
-    fi
-
-    for mod_name in $modules_to_install; do
-        local mod_install="$modules_dir/$mod_name/install.sh"
-
-        # 检查是否已安装
-        local cmds=()
-        case "$mod_name" in
-            node)  cmds=(fnm node npm) ;;
-            java)  cmds=(java java sdk javac) ;;
-            docker) cmds=(docker docker docker-compose) ;;
-            python) cmds=(python3 pip3 python) ;;
-            rust)  cmds=(rust cargo rustup rust) ;;
-            eza)   cmds=(eza) ;;
-            *)     cmds=() ;;
-        esac
-
-        for cmd in "${cmds[@]}"; do
-            if command_exists "$cmd"; then
-                record_skip "检测到已有 ${mod_name}，保留 ${mod_name} 模块"
-                continue 2
-            fi
-        done
-
-        if [ -f "$mod_install" ]; then
-            log_info "安装模块: $mod_name"
-            bash "$mod_install"
-        else
-            log_warning "模块 $mod_name 的安装脚本不存在: $mod_install"
-        fi
-    done
-}
-
-# 配置镜像源
-setup_mirrors() {
-    log_info "配置国内镜像源..."
-    if [ -f "$DOTFILES_DIR/scripts/setup_mirrors.sh" ]; then
-        bash "$DOTFILES_DIR/scripts/setup_mirrors.sh"
-    else
-        log_warning "未找到镜像源配置脚本，跳过"
-    fi
-}
-
-run_doctor() {
-    local doctor_script="$DOTFILES_DIR/scripts/doctor.sh"
-
-    if [ -x "$doctor_script" ]; then
-        log_info "运行安装验收检查..."
-        bash "$doctor_script" all
-    else
-        log_warning "未找到验收脚本，跳过: $doctor_script"
-    fi
-}
-
-show_skip_records() {
-    if [ "${#SKIP_RECORDS[@]}" -eq 0 ]; then
-        return
-    fi
-
-    echo ""
-    log_info "跳过记录:"
-    for record in "${SKIP_RECORDS[@]}"; do
-        echo "  - $record"
-    done
-}
-
-# 解析命令行参数
 parse_args() {
-    SKIP_MIRRORS=false
-    SKIP_BACKUP=false
-    SELECT_ALL=false
-    PACKAGES_ARG=""
-    MODULES_ARG=""
-
-    while [[ $# -gt 0 ]]; do
+    while [ $# -gt 0 ]; do
         case "$1" in
             --skip-mirrors)
                 SKIP_MIRRORS=true
-                shift
                 ;;
-            --skip-backup)
-                SKIP_BACKUP=true
-                shift
+            --force-mirrors)
+                FORCE_MIRRORS=true
                 ;;
-            --all)
-                SELECT_ALL=true
-                shift
+            --skip-packages)
+                SKIP_PACKAGES=true
                 ;;
             --packages)
-                if [[ -z "${2:-}" ]]; then
-                    log_error "--packages 需要指定分类列表（空格分隔）"
+                if [ -z "${2:-}" ] || [[ "${2:-}" == -* ]]; then
+                    log_error "--packages 需要指定分类，例如 base 或 base,extra"
                     exit 1
                 fi
-                PACKAGES_ARG="$2"
-                shift 2
+                PACKAGE_CATEGORIES="$2"
+                PACKAGE_CATEGORIES_SET=true
+                shift
                 ;;
-            --modules)
-                if [[ -z "${2:-}" ]]; then
-                    MODULES_ARG=""
-                    shift
-                elif [[ "${2:0:1}" == "-" ]]; then
-                    MODULES_ARG=""
-                    shift
-                else
-                    MODULES_ARG="$2"
-                    shift 2
-                fi
+            --yes|-y)
+                YES=true
+                ;;
+            --help|-h)
+                usage
+                exit 0
                 ;;
             *)
                 log_error "未知参数: $1"
-                echo "用法: $0 [--skip-mirrors] [--skip-backup] [--all] [--packages \"分类1 分类2\"] [--modules \"模块1 模块2\"]"
+                usage
                 exit 1
                 ;;
         esac
+        shift
     done
 }
 
-# 加载用户配置
-load_user_config() {
-    local config_file="${DOTFILES_DIR}/config/dotfiles.conf"
-    if [ -f "$config_file" ]; then
-        # 只加载不覆盖 DOTFILES_DIR
-        local saved_dir="$DOTFILES_DIR"
-        source "$config_file"
-        DOTFILES_DIR="$saved_dir"
+confirm_step() {
+    local message="$1"
+
+    if [ "$YES" = true ]; then
+        return 0
     fi
+
+    read -r -p "$message (Y/n) " reply
+    [ -z "$reply" ] || [[ "$reply" =~ ^[Yy]$ ]]
 }
 
-# 主安装流程
-main() {
-    show_banner
+setup_mirrors() {
+    if [ "$SKIP_MIRRORS" = true ]; then
+        log_warning "跳过镜像源配置 (--skip-mirrors)"
+        return 0
+    fi
 
-    # 解析命令行参数
+    if ! confirm_step "是否检查并配置国内软件源？"; then
+        log_warning "跳过镜像源配置"
+        return 0
+    fi
+
+    local mirror_args=()
+    [ "$FORCE_MIRRORS" = true ] && mirror_args+=(--force)
+    [ "$YES" = true ] && mirror_args+=(--yes)
+
+    bash "$PROJECT_DIR/scripts/setup_mirrors.sh" "${mirror_args[@]}"
+}
+
+backup_existing_configs() {
+    log_info "Backing up existing configs..."
+    bash "$PROJECT_DIR/scripts/backup.sh"
+}
+
+copy_dotfiles_dir() {
+    if [ "$PROJECT_DIR" = "$INSTALL_DIR" ]; then
+        DOTFILES_DIR="$INSTALL_DIR"
+        export DOTFILES_DIR
+        log_warning "已在 ~/.dotfiles 中运行，跳过复制"
+        return 0
+    fi
+
+    log_info "Copying dotfiles to $INSTALL_DIR..."
+    rm -rf -- "$INSTALL_DIR"
+    mkdir -p "$INSTALL_DIR"
+
+    (cd "$PROJECT_DIR" && tar \
+        --exclude='./.git' \
+        --exclude='./.idea' \
+        --exclude='./.claude' \
+        -cf - .) | (cd "$INSTALL_DIR" && tar -xf -)
+
+    DOTFILES_DIR="$INSTALL_DIR"
+    export DOTFILES_DIR
+    log_success "Copied dotfiles to $INSTALL_DIR"
+}
+
+create_symlinks() {
+    log_info "Creating symlinks..."
+    DOTFILES_SKIP_LINK_BACKUP=1 bash "$DOTFILES_DIR/scripts/link.sh"
+
+    ln -sf "$DOTFILES_DIR/common/.bashrc" "$HOME/.bashrc"
+    log_success "Linked .bashrc"
+
+    ln -sf "$DOTFILES_DIR/common/.zshrc" "$HOME/.zshrc"
+    log_success "Linked .zshrc"
+
+    ln -sf "$DOTFILES_DIR/common/shell/p10k.zsh" "$HOME/.p10k.zsh"
+    log_success "Linked .p10k.zsh"
+
+    ln -sf "$DOTFILES_DIR/common/.profile" "$HOME/.profile"
+    log_success "Linked .profile"
+}
+
+install_base_packages() {
+    if [ "$SKIP_PACKAGES" = true ]; then
+        log_warning "跳过基础软件包安装 (--skip-packages)"
+        return 0
+    fi
+
+    if [ "$PACKAGE_CATEGORIES_SET" != true ] && ! confirm_step "是否安装基础软件包 ($PACKAGE_CATEGORIES)？"; then
+        log_warning "跳过基础软件包安装"
+        return 0
+    fi
+
+    local os
+    os="$(detect_os)"
+    dotfiles_install_packages "$os" "$PACKAGE_CATEGORIES"
+}
+
+main() {
     parse_args "$@"
 
-    # 加载用户配置（在 parse_args 之后，避免 DOTFILES_DIR 未定义）
-    load_user_config
+    local os
+    os="$(detect_os)"
+    log_info "检测到系统: $os"
 
-    # 检测操作系统
-    OS=$(detect_os)
-    log_info "检测到操作系统: $OS"
-
-    # 1. 镜像源配置
-    echo ""
-    if [ "$SKIP_MIRRORS" = true ]; then
-        record_skip "跳过镜像源配置 (--skip-mirrors)"
-    else
-        read -p "是否配置国内镜像源？(推荐) (y/n) " -n 1 -r
-        echo ""
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            setup_mirrors
-        fi
-    fi
-
-    # 2. 备份现有配置
-    echo ""
-    if [ "$SKIP_BACKUP" = true ]; then
-        record_skip "跳过配置备份 (--skip-backup)"
-    else
-        read -p "是否备份现有配置？(y/n) " -n 1 -r
-        echo ""
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            backup_existing
-        fi
-    fi
-
-    # 3. 软件包和模块选择（核心改动）
-    echo ""
-    log_info "开始软件包和模块选择..."
-
-    # 解析 packages.conf
-    dotfiles_parse_package_conf
-
-    # 选择模式
-    if [[ -n "$PACKAGES_ARG" ]]; then
-        dotfiles_select_packages_arg "$PACKAGES_ARG"
-    elif [ "$SELECT_ALL" = true ]; then
-        dotfiles_select_all_packages
-    elif [[ -n "$MODULES_ARG" ]]; then
-        # 只指定了 --modules，包仍然交互式选择
-        dotfiles_select_packages_interactive
-    else
-        dotfiles_select_packages_interactive
-    fi
-
-    # 4. 创建符号链接（共通配置）
+    setup_mirrors
+    backup_existing_configs
+    copy_dotfiles_dir
     create_symlinks
-
-    # 5. 根据操作系统执行特定安装（包安装 + 系统配置）
-    #    将选择结果导出为逗号分隔字符串，供 distro 脚本和 doctor 使用
-    export DOTFILES_SELECTED_PACKAGES="$(IFS=,; echo "${SELECTED_PACKAGES[*]}")"
-    export DOTFILES_SELECTED_MODULES="$(IFS=,; echo "${SELECTED_MODULES[*]}")"
-
-    case "$OS" in
-        arch)
-            install_distro_specific "arch"
-            ;;
-        ubuntu)
-            install_distro_specific "ubuntu"
-            ;;
-        debian)
-            install_distro_specific "debian"
-            ;;
-        fedora)
-            install_distro_specific "fedora"
-            ;;
-        manjaro)
-            install_distro_specific "manjaro"
-            ;;
-        macos)
-            log_info "macOS 配置..."
-            ;;
-        *)
-            log_warning "未知的操作系统: $OS"
-            log_info "仅安装通用配置"
-            ;;
-    esac
-
-    # 6. 安装选中的模块
-    if [ ${#SELECTED_MODULES[@]} -gt 0 ]; then
-        install_modules "$(IFS=' '; echo "${SELECTED_MODULES[*]}")"
-    fi
-
-    # 7. 输出明确的安装/配置可用性摘要
-    run_doctor
-
-    show_skip_records
+    install_base_packages
 
     echo ""
-    log_success "安装完成！"
-    echo ""
-    log_info "请运行以下命令使配置生效:"
-    echo "  source ~/.bashrc"
-    echo ""
-    log_info "或者重新登录系统"
+    log_success "Dotfiles installed!"
+    log_info "使配置生效: source ~/.bashrc 或重新打开终端"
+    log_info "复杂扩展软件请参考: docs/install/README.md"
 }
 
-# 运行主函数
 main "$@"

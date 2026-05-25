@@ -1,4 +1,4 @@
-# 通用 Vim 配置
+" 通用 Vim 配置
 
 " 基础设置
 set nocompatible              " 不兼容 vi

@@ -7,6 +7,8 @@ export DOTFILES_DIR
 # shellcheck disable=SC1091
 source "$DOTFILES_DIR/scripts/lib/common.sh"
 
+LINK_BACKUP_DIR="${DOTFILES_LINK_BACKUP_DIR:-$HOME/.dotfiles_backup/$(date +%Y%m%d_%H%M%S)_link}"
+
 # 创建符号链接
 create_link() {
     local source="$1"
@@ -28,10 +30,14 @@ create_link() {
             fi
         fi
 
-        # 备份现有文件
-        local backup="${target}.backup.$(date +%Y%m%d_%H%M%S)"
-        mv "$target" "$backup"
-        log_warning "已备份: $target -> $backup"
+        if [ "${DOTFILES_SKIP_LINK_BACKUP:-0}" = "1" ]; then
+            rm -rf -- "$target"
+            log_warning "已移除旧目标: $target"
+        else
+            mkdir -p "$LINK_BACKUP_DIR"
+            mv "$target" "$LINK_BACKUP_DIR/$(basename "$target")"
+            log_warning "已备份: $target -> $LINK_BACKUP_DIR/$(basename "$target")"
+        fi
     fi
 
     # 创建符号链接
@@ -53,6 +59,11 @@ link_common_files() {
         create_link "$DOTFILES_DIR/common/.tmux.conf" "$HOME/.tmux.conf"
     fi
 
+    # 链接 .p10k.zsh (Powerlevel10k 主题配置)
+    if [ -f "$DOTFILES_DIR/common/shell/p10k.zsh" ]; then
+        create_link "$DOTFILES_DIR/common/shell/p10k.zsh" "$HOME/.p10k.zsh"
+    fi
+
     # .vimrc 统一使用 common 版本
     if [ -f "$DOTFILES_DIR/common/.vimrc" ]; then
         create_link "$DOTFILES_DIR/common/.vimrc" "$HOME/.vimrc"
@@ -62,10 +73,6 @@ link_common_files() {
 # 链接 Linux 配置文件
 link_linux_files() {
     echo "链接 Linux 配置文件..."
-
-    if [ -f "$DOTFILES_DIR/linux/.Xresources" ]; then
-        create_link "$DOTFILES_DIR/linux/.Xresources" "$HOME/.Xresources"
-    fi
 
     # 链接字体配置（如果存在）
     local font_dir="$DOTFILES_DIR/linux/font"

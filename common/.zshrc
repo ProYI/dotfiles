@@ -14,7 +14,7 @@ setopt APPEND_HISTORY
 setopt HIST_IGNORE_DUPS
 setopt HIST_SAVE_NO_DUPS
 
-# === 通用配置（与 .bashrc 保持一致）===
+# === 通用配置 ===
 export DOTFILES_DIR="${DOTFILES_DIR:-$HOME/.dotfiles}"
 if [ -f "$DOTFILES_DIR/common/shell/loader.sh" ]; then
     source "$DOTFILES_DIR/common/shell/loader.sh"
@@ -39,18 +39,19 @@ autoload -Uz _zinit
 # === Zinit 插件管线 ===
 # 主题
 zinit light romkatv/powerlevel10k
+[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
 # 语法高亮 & 自动建议
 zinit light zdharma-continuum/fast-syntax-highlighting
 zinit light zsh-users/zsh-autosuggestions
 
-# 工具
-zinit light joshskidmore/zsh-fzf-tab-completion
+# Tab 补全增强（fzf 风格）
+zinit light Aloxaf/fzf-tab
 
-# 加载 zsh 专属别名
-if [ -f "$DOTFILES_DIR/common/shell/zsh-aliases.sh" ]; then
-    source "$DOTFILES_DIR/common/shell/zsh-aliases.sh"
-fi
+# 快速搜索
+export FZF_DEFAULT_COMMAND='fd --type f'
+export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
+
 
 # 如果 .zshrc.local 存在，加载私有配置
 if [ -f "$HOME/.zshrc.local" ]; then
