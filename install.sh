@@ -239,11 +239,6 @@ main() {
     OS=$(detect_os)
     log_info "检测到操作系统: $OS"
 
-    # 检测 WSL
-    if detect_wsl; then
-        log_info "检测到 WSL 环境"
-    fi
-
     # 1. 镜像源配置
     echo ""
     if [ "$SKIP_MIRRORS" = true ]; then

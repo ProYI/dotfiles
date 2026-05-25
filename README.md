@@ -2,9 +2,24 @@
 
 一个支持多个操作系统和 Linux 发行版的配置文件管理方案。
 
+## 发行版支持情况
+
+| 发行版 | 状态 | 说明 |
+|--------|------|------|
+| Debian | ✅ 已测试 | 主要开发和测试平台 |
+| Ubuntu | ⚠️ 未测试 | 结构已就绪，待测试 |
+| Arch Linux | ⚠️ 未测试 | 结构已就绪，待测试 |
+| Fedora | ⚠️ 未测试 | 结构已就绪，待测试 |
+| Manjaro | ⚠️ 未测试 | 结构已就绪，待测试 |
+| macOS | ⚠️ 未测试 | 结构已就绪，待测试 |
+
+**说明**：
+- ✅ 已测试：经过完整测试，可以正常使用
+- ⚠️ 未测试：项目结构已创建，但尚未在该平台上测试
+
 ## 特性
 
-- ✅ **多系统支持**: Linux、macOS、Windows (WSL)
+- ✅ **多系统支持**: Linux、macOS
 - ✅ **多发行版支持**: Arch、Ubuntu、Debian、Fedora、Manjaro 等
 - ✅ **国内镜像源**: 自动配置阿里云、清华等国内镜像，大幅提升下载速度
 - ✅ **分层配置**: 通用配置 → Linux 通用 → 发行版特定
@@ -25,9 +40,7 @@ dotfiles/
 │   │   ├── aliases.sh        # 通用别名
 │   │   ├── functions.sh      # 通用函数
 │   │   ├── exports.sh        # 通用环境变量
-│   │   └── zsh-aliases.sh    # zsh 专属别名
-│   ├── font/
-│   │   └── nerd-font.sh      # Nerd Font 检测和安装
+│   │   └── loader.sh         # 配置加载器（分层加载逻辑）
 │   ├── .bashrc               # Bash 配置
 │   ├── .zshrc                # Zsh 配置 (Zinit)
 │   ├── .profile              # Shell profile
@@ -37,11 +50,16 @@ dotfiles/
 │   └── .ssh/                 # SSH 配置模板
 │       └── config            # SSH 模板（复制到 ~/.ssh/config）
 │
+├── config/                    # 全局配置文件
+│   ├── dotfiles.conf         # Dotfiles 目录配置
+│   ├── packages.conf         # 逻辑包名列表（跨发行版）
+│   └── proxy.conf            # 代理和镜像源配置（本地设置，不提交）
+│
 ├── linux/                     # Linux 通用配置
 │   ├── shell/
 │   │   ├── aliases.sh        # Linux 通用别名
 │   │   └── exports.sh        # Linux 通用环境变量
-│   └── font/                  # 终端字体配置
+│   └── font/                  # 终端字体配置片段
 │       ├── foot.conf         # Wayland 终端 foot
 │       ├── kitty.conf        # Kitty 终端
 │       ├── alacritty.toml    # Alacritty 终端
@@ -63,17 +81,23 @@ dotfiles/
 │   ├── docker/               # Docker + Compose
 │   │   ├── install.sh
 │   │   └── shell/env.sh
-│   └── rust/                 # Rust (rustup)
-│       ├── install.sh
-│       └── shell/env.sh
+│   ├── rust/                 # Rust (rustup)
+│   │   ├── install.sh
+│   │   └── shell/env.sh
+│   ├── eza/                  # eza (现代 ls 替代品)
+│   │   └── install.sh
+│   └── nerd-font/            # Nerd Font 安装
+│       └── install.sh
 │
 ├── distros/                   # 发行版特定配置
 │   ├── arch/
+│   │   ├── config/           # 发行版特定配置文件
 │   │   ├── packages-map.sh   # 逻辑包名到实际包名的映射
 │   │   ├── install.sh        # 安装脚本
 │   │   └── shell/
 │   │       └── arch.sh       # Arch 特定配置
 │   ├── ubuntu/
+│   │   ├── config/
 │   │   ├── packages-map.sh
 │   │   ├── install.sh
 │   │   └── shell/
@@ -83,20 +107,27 @@ dotfiles/
 │   └── manjaro/
 │
 ├── macos/                     # macOS 配置
-│   ├── Brewfile              # Homebrew 包列表
 │   └── shell/
-│       └── macos.sh
-│
-├── wsl/                       # WSL 特定配置（叠加在发行版之上）
-│   └── shell/
-│       └── wsl.sh
+│       └── macos.sh          # macOS 特定配置
 │
 ├── scripts/                   # 辅助脚本
 │   ├── lib/                  # 公共脚本库
+│   │   ├── common.sh         # 通用工具函数
+│   │   ├── log.sh            # 日志输出函数
+│   │   ├── module.sh         # 模块安装公共函数
+│   │   ├── package-manager.sh # 包管理器抽象层
+│   │   ├── packages.sh       # 包安装和映射逻辑
+│   │   └── proxy.sh          # 代理配置处理
 │   ├── detect_os.sh          # 系统检测
 │   ├── setup_mirrors.sh      # 镜像源配置（国内优化）
 │   ├── link.sh               # 符号链接管理
-│   └── backup.sh             # 备份脚本
+│   ├── backup.sh             # 备份脚本
+│   └── doctor.sh             # 环境诊断工具
+│
+├── test/                      # Docker 测试框架
+│   ├── dockerfiles/          # 各发行版 Dockerfile
+│   ├── test.sh               # 测试脚本
+│   └── README.md             # 测试文档
 │
 └── install.sh                 # 主安装脚本
 ```
@@ -155,6 +186,8 @@ cd ~/.dotfiles
 | `python` | pyenv | 多版本 Python 管理 |
 | `docker` | Docker + Compose | 容器引擎 + 镜像加速 |
 | `rust` | rustup | Rust 工具链 |
+| `eza` | eza | 现代化的 ls 替代品，支持图标和 Git 集成 |
+| `nerd-font` | Nerd Font | 编程字体，支持图标和符号 |
 
 **完整示例**：
 
@@ -163,10 +196,10 @@ cd ~/.dotfiles
 ./install.sh --skip-mirrors --skip-backup --skip-modules
 
 # 安装所有模块（跳过镜像和备份）
-./install.sh --skip-backup --modules "node java python docker rust"
+./install.sh --skip-backup --modules "node java python docker rust eza nerd-font"
 
 # 只安装常用模块
-./install.sh --modules "node docker python"
+./install.sh --modules "node docker python eza nerd-font"
 ```
 
 ### 3. 使配置生效
@@ -190,13 +223,10 @@ source ~/.bashrc
 3. **发行版特定配置** (`distros/{distro}/shell/`)
    - 特定发行版的配置和别名
 
-4. **WSL 配置** (`wsl/shell/wsl.sh`)
-   - 如果在 WSL 中运行，额外加载（叠加在发行版配置之上）
-
-5. **macOS 配置** (`macos/shell/macos.sh`)
+4. **macOS 配置** (`macos/shell/macos.sh`)
    - macOS 特定配置
 
-6. **开发工具模块** (`modules/`)
+5. **开发工具模块** (`modules/`)
    - 通过 `DOTFILES_MODULES` 环境变量控制加载
    - 示例: `export DOTFILES_MODULES="node java python docker"`
 
@@ -217,11 +247,14 @@ source ~/.bashrc
 # 安装单个模块
 bash modules/node/install.sh
 bash modules/java/install.sh
+bash modules/nerd-font/install.sh
+bash modules/eza/install.sh
 
-# 安装所有模块
+# 安装所有模块（跳过模板）
 for mod in modules/*/; do
     [ -d "$mod" ] || continue
-    [[ "$(basename "$mod")" == _example ]] && continue
+    mod_name="$(basename "$mod")"
+    [[ "$mod_name" == _example ]] && continue
     bash "$mod/install.sh"
 done
 ```
@@ -234,9 +267,11 @@ done
 ```
 modules/mytool/
 ├── install.sh      # 安装逻辑
-└── shell/
+└── shell/          # 可选：如果需要环境变量配置
     └── env.sh      # 环境变量
 ```
+
+**注意**：`shell/` 目录是可选的。如果模块只需要安装工具而不需要配置环境变量（如 `eza`、`nerd-font`），可以省略 `shell/` 目录。
 
 ## zsh 配置
 
@@ -265,11 +300,8 @@ modules/mytool/
 终端图标需要 Nerd Font 支持。推荐使用 **JetBrains Mono Nerd Font**。
 
 ```bash
-# 检测字体
-bash common/font/nerd-font.sh check
-
-# 安装字体
-bash common/font/nerd-font.sh install
+# 使用模块安装
+bash modules/nerd-font/install.sh
 ```
 
 ### 中文 CJK 支持
@@ -436,6 +468,26 @@ docker-mirror-edit
 ```bash
 ./scripts/detect_os.sh
 ```
+
+### 环境诊断
+
+使用 `doctor.sh` 检查 dotfiles 配置是否正确加载：
+
+```bash
+# 检查所有配置
+./scripts/doctor.sh
+
+# 检查特定范围
+./scripts/doctor.sh packages  # 检查已安装的包
+./scripts/doctor.sh modules   # 检查已安装的模块
+```
+
+该脚本会验证：
+- 系统检测是否正确
+- 配置文件是否正确加载
+- 别名和函数是否可用
+- 环境变量是否设置
+- 已安装的包和模块状态
 
 ## 自定义
 

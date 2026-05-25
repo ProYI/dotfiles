@@ -75,6 +75,8 @@ FNM_NODE_DIST_MIRROR="https://npmmirror.com/mirrors/node"
 
 Docker 测试会把这些配置传入容器，供 fnm 官方安装脚本和 Node 版本下载使用。
 
+**注意**：`config/proxy.conf` 是本地配置文件，已在 `.gitignore` 中排除，不会提交到仓库。
+
 ## 命令参数
 
 ```
@@ -245,9 +247,11 @@ vim distros/ubuntu/shell/ubuntu.sh
 # 1. 创建 Dockerfile
 vim test/dockerfiles/Dockerfile.newdistro
 
-# 2. 创建配置文件
+# 2. 创建配置目录和文件
 mkdir -p distros/newdistro/{shell,config}
 vim distros/newdistro/shell/newdistro.sh
+vim distros/newdistro/packages-map.sh
+vim distros/newdistro/install.sh
 
 # 3. 在 test.sh 中添加到 DISTROS 数组
 vim test/test.sh
@@ -434,7 +438,7 @@ A: 不会。所有测试都在隔离的容器中运行，不影响宿主机。
 
 **Q: 可以在 Windows 上运行吗？**
 
-A: 可以，需要安装 Docker Desktop for Windows 或使用 WSL2 + Docker。
+A: 可以，需要安装 Docker Desktop for Windows。
 
 ## 贡献
 

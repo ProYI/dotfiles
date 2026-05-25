@@ -55,14 +55,6 @@ _dotfiles_load_distro() {
     _dotfiles_source_file "$DOTFILES_DIR/distros/$distro_id/shell/$distro_id.sh"
 }
 
-_dotfiles_load_wsl() {
-    [ -r /proc/version ] || return
-
-    if grep -qEi "(Microsoft|WSL)" /proc/version >/dev/null 2>&1; then
-        _dotfiles_source_file "$DOTFILES_DIR/wsl/shell/wsl.sh"
-    fi
-}
-
 _dotfiles_load_common_shell() {
     _dotfiles_source_file "$DOTFILES_DIR/common/shell/exports.sh"
     _dotfiles_source_file "$DOTFILES_DIR/common/shell/aliases.sh"
@@ -72,7 +64,6 @@ _dotfiles_load_common_shell() {
         _dotfiles_source_file "$DOTFILES_DIR/linux/shell/exports.sh"
         _dotfiles_source_file "$DOTFILES_DIR/linux/shell/aliases.sh"
         _dotfiles_load_distro
-        _dotfiles_load_wsl
     elif [[ "${OSTYPE:-}" == darwin* ]]; then
         _dotfiles_source_file "$DOTFILES_DIR/macos/shell/macos.sh"
     fi
@@ -94,12 +85,10 @@ if [ -n "${ZSH_VERSION:-}" ]; then
     unfunction _dotfiles_source_file 2>/dev/null || true
     unfunction _dotfiles_load_modules 2>/dev/null || true
     unfunction _dotfiles_load_distro 2>/dev/null || true
-    unfunction _dotfiles_load_wsl 2>/dev/null || true
     unfunction _dotfiles_load_common_shell 2>/dev/null || true
 else
     unset -f _dotfiles_source_file
     unset -f _dotfiles_load_modules
     unset -f _dotfiles_load_distro
-    unset -f _dotfiles_load_wsl
     unset -f _dotfiles_load_common_shell
 fi

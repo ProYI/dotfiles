@@ -5,6 +5,8 @@
 ## 前置要求
 
 - Docker 已安装并运行
+- （可选）配置 `~/.docker/mirror.conf` 用于镜像加速
+- （可选）配置 `config/proxy.conf` 用于模块安装代理
 
 ## 快速开始
 
@@ -29,6 +31,18 @@
 ```bash
 ./test/test.sh -a
 ```
+
+### 命令参数
+
+| 参数 | 说明 |
+|------|------|
+| `-h, --help` | 显示帮助信息 |
+| `-a, --all` | 测试所有发行版（arch, ubuntu, debian, fedora） |
+| `-b, --build` | 强制重新构建 Docker 镜像 |
+| `-c, --clean` | 清理所有测试容器和镜像 |
+| `-i, --interactive` | 交互式模式，进入容器 shell 手动调试 |
+| `-k, --keep-image` | 测试后保留镜像（默认测试通过后会删除） |
+| `-s, --skip-test` | 跳过测试模式：首次全量安装 + 二次运行，验证安装脚本的跳过逻辑 |
 
 ### 重新构建镜像
 
@@ -56,6 +70,11 @@ cd ~/.dotfiles-test
 
 # 测试配置
 source ~/.bashrc
+
+# 测试别名和函数
+ll
+gs
+extract --help
 ```
 
 ### 清理
@@ -78,10 +97,12 @@ source ~/.bashrc
 
 ## 支持的发行版
 
-- Arch Linux
-- Ubuntu 22.04
-- Debian 12
-- Fedora 39
+| 发行版 | 版本 | Dockerfile |
+|--------|------|------------|
+| Arch Linux | latest | `test/dockerfiles/Dockerfile.arch` |
+| Ubuntu | 22.04 | `test/dockerfiles/Dockerfile.ubuntu` |
+| Debian | 12 | `test/dockerfiles/Dockerfile.debian` |
+| Fedora | 39 | `test/dockerfiles/Dockerfile.fedora` |
 
 ## 添加新的发行版测试
 
@@ -91,9 +112,22 @@ source ~/.bashrc
 touch test/dockerfiles/Dockerfile.newdistro
 ```
 
-2. 编辑 Dockerfile，参考现有的格式
+2. 创建发行版配置：
+
+```bash
+mkdir -p distros/newdistro/{shell,config}
+touch distros/newdistro/shell/newdistro.sh
+touch distros/newdistro/packages-map.sh
+touch distros/newdistro/install.sh
+```
 
 3. 在 `test.sh` 中添加到 `DISTROS` 数组
+
+4. 测试：
+
+```bash
+./test/test.sh -b newdistro
+```
 
 ## 故障排除
 
@@ -103,7 +137,8 @@ touch test/dockerfiles/Dockerfile.newdistro
 
 ```bash
 sudo usermod -aG docker $USER
-# 重新登录
+# 重新登录或运行
+newgrp docker
 ```
 
 ### 镜像构建失败
@@ -121,4 +156,9 @@ sudo usermod -aG docker $USER
 
 ```bash
 sudo systemctl status docker
+sudo systemctl start docker
 ```
+
+## 详细文档
+
+完整的测试文档和最佳实践请查看 [TESTING.md](../TESTING.md)。
