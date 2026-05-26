@@ -33,6 +33,11 @@ if [[ ! -f $HOME/.local/share/zinit/zinit.git/zinit.zsh ]]; then
 fi
 
 source "$HOME/.local/share/zinit/zinit.git/zinit.zsh"
+
+# 必须配置否则影响fzf-tab
+autoload -Uz compinit
+compinit
+
 autoload -Uz _zinit
 (( ${+_comps} )) && _comps[zinit]=_zinit
 
@@ -41,12 +46,19 @@ autoload -Uz _zinit
 zinit light romkatv/powerlevel10k
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
+# Tab 补全增强（fzf 风格）
+zinit light Aloxaf/fzf-tab
+
 # 语法高亮 & 自动建议
 zinit light zdharma-continuum/fast-syntax-highlighting
 zinit light zsh-users/zsh-autosuggestions
 
-# Tab 补全增强（fzf 风格）
-zinit light Aloxaf/fzf-tab
+# 智能跳转 zoxide
+zinit ice from"gh-r" as"program" \
+    atclone"./zoxide init zsh > init.zsh" \
+    atpull"%atclone" \
+    src"init.zsh"
+zinit light ajeetdsouza/zoxide
 
 # 快速搜索
 export FZF_DEFAULT_COMMAND='fd --type f'

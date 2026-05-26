@@ -57,6 +57,14 @@ source ~/.bashrc
 ```
 
 当前基础包包括：`git`、`curl`、`wget`、`ca-certificates`、`zsh`、`vim`、`tmux`、`fzf`、`ripgrep`、`fd`、`bat`、`jq`、`unzip`、`zip`、`tree`。
+## 自用软件
+
+基础包清单在 `config/packages.conf`：
+
+| 分类 | 说明         |
+|------|------------|
+| `zoxide` | 智能的目录跳转工具  |
+| `fzf-tab` | fzf风格tab补全 |
 
 ## 镜像源策略
 
