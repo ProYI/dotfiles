@@ -57,14 +57,6 @@ source ~/.bashrc
 ```
 
 当前基础包包括：`git`、`curl`、`wget`、`ca-certificates`、`zsh`、`vim`、`tmux`、`fzf`、`ripgrep`、`fd`、`bat`、`jq`、`unzip`、`zip`、`tree`。
-## 自用软件
-
-基础包清单在 `config/packages.conf`：
-
-| 分类 | 说明         |
-|------|------------|
-| `zoxide` | 智能的目录跳转工具  |
-| `fzf-tab` | fzf风格tab补全 |
 
 ## 镜像源策略
 
@@ -76,18 +68,9 @@ source ~/.bashrc
 
 所有系统源文件写入前都会备份。默认不会修改 npm、pip、Docker daemon。
 
-## 扩展软件安装
+## 软件安装
 
-复杂软件请按需阅读文档后手动安装：
-
-- [扩展软件总览](docs/install/README.md)
-- [Docker](docs/install/docker.md)
-- [Node / fnm](docs/install/node.md)
-- [Python](docs/install/python.md)
-- [Rust](docs/install/rust.md)
-- [Java / SDKMAN](docs/install/java.md)
-- [字体](docs/install/fonts.md)
-- [eza](docs/install/eza.md)
+基础包通过 `./install.sh --packages base,extra` 安装。Docker、Node、Rust 等复杂软件及发行版特定安装方式，请参考 [软件安装总览](docs/install/README.md)。
 
 ## 备份策略
 
