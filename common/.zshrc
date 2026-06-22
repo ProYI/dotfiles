@@ -17,7 +17,9 @@ setopt HIST_SAVE_NO_DUPS
 # === 通用配置 ===
 export DOTFILES_DIR="${DOTFILES_DIR:-$HOME/.dotfiles}"
 if [ -f "$DOTFILES_DIR/common/shell/loader.sh" ]; then
+    DOTFILES_LOAD_PROFILE=1 DOTFILES_LOAD_RUNTIME_EXTRAS=1
     source "$DOTFILES_DIR/common/shell/loader.sh"
+    unset DOTFILES_LOAD_PROFILE DOTFILES_LOAD_RUNTIME_EXTRAS
 fi
 
 # 重载别名：reload 指向 .zshrc
